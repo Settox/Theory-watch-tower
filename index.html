@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Forbidden Library</title>
+<meta name="description" content="Read anything, pin every idea as a star, and watch your thinking turn into constellations. A reading and mind-mapping space you can share.">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#060918">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,SOFT,WONK@9..144,300..700,0..100,0..1&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/theme.css">
+<link rel="stylesheet" href="css/home.css">
+</head>
+<body>
+<canvas id="sky" aria-hidden="true"></canvas>
+
+<header class="nav wrap">
+  <a class="brand" href="./" aria-label="The Forbidden Library, home">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M4 18 9 9l6 5 5-10"/><circle cx="4" cy="18" r="1.6" fill="currentColor"/><circle cx="9" cy="9" r="1.6" fill="currentColor"/><circle cx="15" cy="14" r="1.6" fill="currentColor"/><circle cx="20" cy="4" r="1.6" fill="currentColor"/></svg>
+    <span>The Forbidden Library</span>
+  </a>
+  <button class="btn" id="themeBtn" aria-label="Switch between night and day">Night / day</button>
+</header>
+
+<main>
+  <section class="hero" aria-labelledby="title">
+    <div class="portal">
+      <svg id="arch" viewBox="0 0 600 780" aria-hidden="true" focusable="false"></svg>
+      <div class="portal-copy">
+        <h1 id="title">The Forbidden Library</h1>
+        <p>Read anything. Pin each idea as a star. Watch your thinking turn into constellations.</p>
+        <div class="cta">
+          <a class="btn primary big" href="app.html">Open my sky</a>
+          <a class="btn big" href="#rooms">Join a room</a>
+        </div>
+      </div>
+    </div>
+    <a class="cue" href="#personal" aria-label="Go to your shelves"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></a>
+  </section>
+
+  <div class="shelves wrap">
+    <section class="shelf-sec" id="personal" aria-labelledby="hp">
+      <h2 id="hp">Your sky</h2>
+      <p class="sub">Canvases saved on this device. Pull one off the shelf to keep working.</p>
+      <div class="shelf" id="personalGrid"></div>
+    </section>
+
+    <section class="shelf-sec" id="rooms" aria-labelledby="hr">
+      <h2 id="hr">Shared rooms</h2>
+      <p class="sub">Rooms you have joined. Anyone who knows a room's name can edit it, so choose one that is hard to guess.</p>
+      <div class="shelf" id="roomGrid"></div>
+    </section>
+  </div>
+
+  <section class="inside wrap" aria-label="What you can do here">
+    <article><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2l2.4 7.6L22 12l-7.6 2.4L12 22l-2.4-7.6L2 12l7.6-2.4z"/></svg><h3>Map your ideas</h3><p>Notes, images and video become stars. Link them, label how they connect, and test your argument.</p></article>
+    <article><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg><h3>Read beside the map</h3><p>Open PDFs and EPUBs next to your canvas. Select a passage and it becomes a star that remembers its page.</p></article>
+    <article><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/></svg><h3>Listen and translate</h3><p>Have any book read aloud sentence by sentence, or translate it and keep the result on its own shelf.</p></article>
+    <article><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><circle cx="17.5" cy="9" r="2.4"/><path d="M17.5 14c2.5 0 4.5 2 4.5 4.5"/></svg><h3>Think together</h3><p>Share a room, see each other's cursors, react to stars and publish a canvas anyone can read.</p></article>
+  </section>
+</main>
+
+<footer class="wrap">The Forbidden Library. Your canvases stay in this browser unless you join a room.</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="supabase-config.js"></script>
+<script>
+  // v1 links (?room=x) keep working: forward them to the app
+  (function () { var q = new URLSearchParams(location.search).get('room'); if (q) location.replace('app.html?room=' + encodeURIComponent(q)); })();
+</script>
+<script type="module" src="js/home.js"></script>
+</body>
+</html>

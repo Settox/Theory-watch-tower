@@ -1,0 +1,112 @@
+/* The Forbidden Library: homepage. One bold thing (the constellation doorway), everything else quiet. */
+body { overflow-x: hidden; }
+.wrap { max-width: 1120px; margin: 0 auto; padding: 0 20px; position: relative; z-index: 1; }
+main, header, footer { position: relative; z-index: 1; }
+
+.nav { display: flex; justify-content: space-between; align-items: center; padding-top: 16px; padding-bottom: 8px; }
+.brand { display: inline-flex; align-items: center; gap: 10px; color: var(--star); text-decoration: none; font: 500 17px var(--serif); font-variation-settings: 'opsz' 24; letter-spacing: .01em; }
+.brand svg { color: var(--gold); }
+
+/* ---------- hero: the doorway ---------- */
+.hero { min-height: calc(100svh - 56px); display: grid; place-items: center; padding: 8px 16px 56px; position: relative; }
+.portal { position: relative; width: min(540px, 92vw, calc((100svh - 150px) * 600 / 780)); aspect-ratio: 600 / 780; }
+#arch { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+#arch .line { fill: none; stroke: var(--star); stroke-linecap: round; stroke-linejoin: round; }
+#arch .line.out { stroke-width: 1.5; opacity: .8; }
+#arch .line.in { stroke-width: 1; opacity: .5; }
+#arch .line.truss { stroke-width: .8; opacity: .3; stroke: var(--cyan); }
+#arch .pt { fill: var(--star); }
+#arch .pt.key { fill: var(--gold); filter: drop-shadow(0 0 8px var(--gold)); }
+#arch .gold { stroke: var(--gold); fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; filter: drop-shadow(0 0 6px var(--gold)); }
+#arch .spark { stroke: var(--gold); stroke-width: 1.2; stroke-linecap: round; opacity: .9; }
+
+.portal-copy { position: absolute; inset: 21% 20.5% 7% 20.5%; display: grid; align-content: center; justify-items: center; text-align: center; gap: 16px; }
+.portal-copy h1 {
+  margin: 0; font-family: var(--serif); font-weight: 300; font-size: clamp(2.3rem, 8.2vw, 4.1rem); line-height: 1; letter-spacing: -.025em;
+  font-variation-settings: 'opsz' 144, 'SOFT' 100, 'WONK' 1; text-wrap: balance; color: var(--star);
+  text-shadow: 0 0 36px color-mix(in srgb, var(--gold) 35%, transparent);
+}
+.portal-copy p { margin: 0; max-width: 31ch; color: var(--dim); font-size: clamp(14px, 2.4vw, 16.5px); line-height: 1.55; text-wrap: balance; }
+.cta { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 4px; }
+.btn.big { padding: 11px 22px; font-size: 15px; }
+.cue { position: absolute; bottom: 14px; left: 50%; translate: -50% 0; color: var(--dim); display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--line); text-decoration: none; }
+.cue:hover, .cue:focus-visible { color: var(--gold); border-color: var(--gold); }
+
+/* the one orchestrated moment: the doorway builds itself, then the words arrive */
+@media (prefers-reduced-motion: no-preference) {
+  #arch .draw { stroke-dasharray: 1; stroke-dashoffset: 1; animation: draw 1.5s cubic-bezier(.3, .6, .2, 1) forwards; animation-delay: var(--d, 0s); }
+  #arch .pt, #arch .spark { opacity: 0; animation: pop .6s ease-out forwards; animation-delay: var(--d, 0s); }
+  #arch .glow { opacity: 0; animation: fade 2s ease-out 1.2s forwards; }
+  .portal-copy > * { opacity: 0; animation: rise .9s ease-out forwards; }
+  .portal-copy > :nth-child(1) { animation-delay: 1.5s; } .portal-copy > :nth-child(2) { animation-delay: 1.75s; } .portal-copy > :nth-child(3) { animation-delay: 2s; }
+}
+@keyframes draw { to { stroke-dashoffset: 0; } }
+@keyframes pop { from { opacity: 0; transform: scale(.2); } to { opacity: 1; transform: scale(1); } }
+@keyframes fade { to { opacity: 1; } }
+@keyframes rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+#arch .pt { transform-box: fill-box; transform-origin: center; }
+
+/* ---------- shelves ---------- */
+.shelves { padding-top: 24px; padding-bottom: 8px; background: linear-gradient(transparent, color-mix(in srgb, var(--ink) 55%, transparent) 140px); }
+.shelf-sec { padding: 40px 0 8px; }
+.shelf-sec h2 { margin: 0; font: 400 clamp(1.7rem, 4vw, 2.3rem)/1.1 var(--serif); font-variation-settings: 'opsz' 96, 'SOFT' 100; letter-spacing: -.015em; }
+.sub { margin: 8px 0 22px; color: var(--dim); max-width: 62ch; font-size: 14.5px; line-height: 1.55; }
+.shelf { display: grid; grid-template-columns: repeat(auto-fill, minmax(168px, 1fr)); column-gap: 16px; row-gap: 0; }
+.cell { position: relative; height: 308px; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 14px; }
+.cell::after { content: ''; position: absolute; left: -8px; right: -8px; bottom: 0; height: 14px; border-top: 1px solid color-mix(in srgb, var(--gold) 55%, transparent); background: linear-gradient(color-mix(in srgb, var(--gold) 16%, transparent), transparent); }
+.shelf .empty { grid-column: 1 / -1; align-self: center; color: var(--dim); margin: 0; font-size: 14px; max-width: 46ch; }
+
+.book {
+  --h: 220; position: relative; width: min(100%, 176px); height: var(--bh, 250px); display: flex; flex-direction: column; gap: 6px; padding: 12px 12px 12px 18px; overflow: hidden;
+  color: var(--star); text-decoration: none; border-radius: 6px 8px 3px 3px;
+  background: linear-gradient(165deg, hsl(var(--h) 34% 20%), hsl(var(--h) 30% 9%));
+  border: 1px solid color-mix(in srgb, var(--gold) 38%, transparent); box-shadow: 0 10px 22px rgba(0, 0, 0, .35), inset 0 1px 0 rgba(255, 255, 255, .06);
+  transition: transform .22s cubic-bezier(.3, .7, .2, 1), box-shadow .22s, border-color .22s;
+}
+.book::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 9px; background: linear-gradient(90deg, rgba(0, 0, 0, .35), transparent), repeating-linear-gradient(0deg, color-mix(in srgb, var(--gold) 70%, transparent) 0 2px, transparent 2px 22px); opacity: .55; }
+.book::after { content: ''; position: absolute; inset: 5px 5px auto 14px; height: 1px; background: color-mix(in srgb, var(--gold) 55%, transparent); }
+.book:hover, .book:focus-visible { transform: translateY(-12px) rotate(-.6deg); border-color: var(--gold); box-shadow: 0 22px 34px rgba(0, 0, 0, .45), 0 0 26px color-mix(in srgb, var(--gold) 30%, transparent); }
+.book:focus-visible { outline: 2px solid var(--cyan); outline-offset: 3px; }
+.bk-thumb { flex: none; aspect-ratio: 4 / 3; margin-top: 4px; display: grid; border-radius: 4px; background: color-mix(in srgb, #000 40%, transparent); overflow: hidden; }
+.bk-title { font: 500 16px/1.2 var(--serif); font-variation-settings: 'opsz' 24; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
+.bk-meta { margin-top: auto; font-size: 12px; color: var(--dim); }
+.pv { width: 100%; height: 100%; display: block; }
+.pv-card { fill: color-mix(in srgb, var(--ink2) 90%, transparent); }
+.pv-group { fill: none; stroke-dasharray: 6 6; }
+.pv-title { fill: var(--star); font-family: Georgia, serif; font-weight: 600; }
+.pv-empty { fill: var(--dim); font: 14px var(--mono); }
+.placeholder { display: grid; place-content: center; color: var(--dim); font-size: 12px; text-align: center; padding: 6px; }
+
+/* the empty slots at the end of each shelf */
+.slot { --bh: 250px; background: transparent; border: 1.5px dashed color-mix(in srgb, var(--gold) 45%, transparent); box-shadow: none; justify-content: center; align-items: center; text-align: center; gap: 10px; padding: 14px; }
+.slot::before, .slot::after { display: none; }
+.slot:hover, .slot:focus-within { transform: none; border-color: var(--gold); box-shadow: 0 0 26px color-mix(in srgb, var(--gold) 22%, transparent); }
+.slot .plus { width: 52px; height: 52px; border-radius: 50%; display: grid; place-items: center; border: 1px solid var(--gold); color: var(--gold); font-size: 26px; line-height: 1; }
+.slot strong { font: 500 16px var(--serif); }
+.slot span.s { font-size: 12.5px; color: var(--dim); }
+form.slot { align-items: stretch; }
+form.slot label { display: grid; gap: 6px; text-align: left; font: 500 15px var(--serif); }
+form.slot input { font: 400 14px var(--sans); padding: 9px 10px; }
+form.slot .btn { justify-content: center; }
+form.slot small { font-size: 12px; color: var(--dim); text-align: left; line-height: 1.4; }
+
+/* ---------- what is inside ---------- */
+.inside { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 28px 32px; padding-top: 64px; padding-bottom: 72px; }
+.inside article { display: grid; gap: 8px; align-content: start; }
+.inside .ic { width: 26px; height: 26px; fill: none; stroke: var(--gold); stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+.inside h3 { margin: 4px 0 0; font: 500 19px var(--serif); font-variation-settings: 'opsz' 36; }
+.inside p { margin: 0; color: var(--dim); font-size: 14.5px; line-height: 1.6; max-width: 34ch; }
+footer { padding-top: 22px; padding-bottom: 40px; color: var(--dim); font-size: 13px; border-top: 1px solid var(--line); }
+
+/* day theme: books become parchment-toned, the doorway turns to ink */
+:root[data-theme='day'] .book { background: linear-gradient(165deg, hsl(var(--h) 45% 90%), hsl(var(--h) 38% 78%)); box-shadow: 0 10px 22px rgba(60, 40, 10, .18); }
+:root[data-theme='day'] .bk-thumb { background: color-mix(in srgb, #fff 55%, transparent); }
+:root[data-theme='day'] .portal-copy h1 { text-shadow: none; }
+
+@media (max-width: 640px) {
+  .shelf { grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 12px; }
+  .cell { height: 292px; } .book { --bh: 236px; width: 100%; }
+  .portal-copy { inset: 22% 19.5% 6% 19.5%; gap: 12px; }
+  .btn.big { padding: 10px 18px; font-size: 14px; }
+}
+@media (max-width: 400px) { .brand span { display: none; } }
