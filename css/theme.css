@@ -1,0 +1,51 @@
+/* Constellation theme: night sky + gold star-lines. Shared by home and app. */
+:root {
+  --ink: #060918; --ink2: #0f1530; --ink3: #1a2250;
+  --line: rgba(244, 241, 232, .14); --line2: rgba(244, 241, 232, .28);
+  --star: #f4f1e8; --dim: #9aa3c4; --gold: #e8c872; --cyan: #7fd6ff; --rose: #ff8fa8; --ok: #8be3a4;
+  --radius: 10px;
+  --serif: 'Fraunces', Georgia, serif; --sans: 'Inter', system-ui, sans-serif; --mono: 'JetBrains Mono', ui-monospace, monospace;
+}
+:root[data-theme='day'] {
+  --ink: #f3efe4; --ink2: #ebe5d4; --ink3: #e0d8c1;
+  --line: rgba(20, 28, 60, .16); --line2: rgba(20, 28, 60, .32);
+  --star: #141c3c; --dim: #5a6385; --gold: #a97c14; --cyan: #1f6f98; --rose: #b8456a; --ok: #2f7d4a;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: var(--ink); color: var(--star); font: 15px/1.5 var(--sans); }
+h1, h2, h3, .serif { font-family: var(--serif); font-weight: 600; letter-spacing: -.01em; }
+.mono, .eyebrow { font-family: var(--mono); font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--dim); }
+a { color: var(--gold); }
+button, input, select, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+.btn {
+  background: transparent; border: 1px solid var(--line2); color: var(--star); padding: 8px 14px; border-radius: 999px;
+  display: inline-flex; align-items: center; gap: 8px; text-decoration: none; transition: border-color .15s, background .15s;
+}
+.btn:hover { border-color: var(--gold); background: color-mix(in srgb, var(--gold) 10%, transparent); }
+.btn.primary { background: var(--gold); border-color: var(--gold); color: #1a1405; font-weight: 600; }
+.btn.primary:hover { filter: brightness(1.08); }
+.btn:focus-visible, input:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
+input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='color']):not([type='file']), select, textarea {
+  background: var(--ink2); border: 1px solid var(--line); border-radius: 8px; padding: 9px 12px; width: 100%;
+}
+#sky { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; }
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+@media print {
+  #top, #statusbar, #hud, #minimap, #ctxbar, #penbar, #library, #sky, #toast { display: none !important; }
+  body { overflow: visible; background: #fff; color: #000; }
+  #stage { position: static; }
+}
+html { background: radial-gradient(120% 90% at 50% 0%, #121842 0%, #060918 55%, #03040d 100%) fixed; }
+:root[data-theme='day'] html, html[data-theme='day'] { background: radial-gradient(120% 90% at 50% 0%, #fbf6e6 0%, #f3efe4 100%) fixed; }
+body { background: transparent; }
+
+input[type='checkbox'] { width: 18px; height: 18px; accent-color: var(--gold); }
+
+/* scrollbars that melt into the sky: thin, translucent, brighter on hover */
+* { scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--star) 22%, transparent) transparent; }
+*::-webkit-scrollbar { width: 8px; height: 8px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--star) 18%, transparent); border-radius: 8px; border: 2px solid transparent; background-clip: content-box; }
+*::-webkit-scrollbar-thumb:hover { background: color-mix(in srgb, var(--gold) 55%, transparent); background-clip: content-box; }
+*::-webkit-scrollbar-corner { background: transparent; }

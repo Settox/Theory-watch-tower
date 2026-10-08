@@ -1,0 +1,23 @@
+/* Study mode + journeys UI */
+.study-ov { position: fixed; inset: 0; z-index: 70; background: color-mix(in srgb, var(--ink) 94%, transparent); backdrop-filter: blur(8px); display: grid; align-content: center; justify-items: center; gap: 14px; padding: 16px; overflow: auto; }
+.study-ov > * { width: min(560px, 100%); }
+.study-card { background: var(--ink2); border: 1px solid var(--line2); border-radius: 14px; padding: 18px; display: grid; gap: 10px; }
+.study-flash { min-height: 220px; align-content: start; touch-action: pan-y; cursor: pointer; user-select: none; }
+.study-front { font: 600 22px var(--serif); white-space: pre-wrap; }
+.study-back { display: none; border-top: 1px solid var(--line); padding-top: 10px; white-space: pre-wrap; max-height: 40vh; overflow: auto; }
+.study-flash.shown .study-back { display: block; color: var(--star); }
+.study-src { color: var(--dim); font-size: 12px; }
+.study-row { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
+.study-rates { justify-content: stretch; } .study-rates .btn { flex: 1; }
+.study-rates .r0 { border-color: var(--rose); } .study-rates .r2 { border-color: var(--cyan); } .study-rates .r3 { border-color: var(--ok); }
+.study-top { display: flex; align-items: center; gap: 10px; }
+.study-bar { flex: 1; height: 6px; background: var(--line); border-radius: 3px; overflow: hidden; }
+.study-bar i { display: block; height: 100%; width: 0; background: var(--gold); transition: width .3s; }
+.jr-rec { position: fixed; left: 12px; bottom: 56px; z-index: 60; display: flex; gap: 8px; align-items: center; background: var(--ink2); border: 1px solid var(--rose); border-radius: 999px; padding: 4px 6px 4px 12px; font: 12px var(--mono); }
+.jr-rec b { color: var(--rose); animation: jrp 1.4s infinite; }
+@keyframes jrp { 50% { opacity: .3; } }
+.jr-bar { position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%); z-index: 65; width: min(620px, calc(100vw - 24px)); background: var(--ink2); border: 1px solid var(--gold); border-radius: 14px; padding: 12px; display: grid; gap: 8px; box-shadow: 0 8px 30px #0008; }
+.jr-bar .jr-cap { font: 500 15px var(--serif); min-height: 2.4em; }
+.jr-strip { display: flex; gap: 3px; } .jr-strip i { flex: 1; height: 8px; border-radius: 3px; background: var(--line2); cursor: pointer; } .jr-strip i.on { background: var(--gold); }
+.jr-item { display: flex; gap: 6px; align-items: center; justify-content: space-between; flex-wrap: wrap; border-bottom: 1px solid var(--line); padding-bottom: 6px; }
+@media (prefers-reduced-motion: reduce) { .study-bar i { transition: none; } .jr-rec b { animation: none; } }
