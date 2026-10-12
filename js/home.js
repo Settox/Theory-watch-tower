@@ -52,8 +52,11 @@ const applyDoor = (on) => { // the door for everyone; the tea party scene only f
   if (on) { try { doorway(svg); } catch (e) { console.warn('doorway failed', e); } }
 };
 applyDoor(DOOR);
-addEventListener('st-user', (e) => { // sent by js/auth.js once the session is known (cosmetic only: it chooses a picture, it grants nothing)
-  const u = e.detail, owner = !!(u && u.confirmed && String(u.email).toLowerCase() === 'settineri00@gmail.com');
+// accounts that see the tea-party scene instead of the door, as SHA-256 of the lowercase email (the list is public, the addresses are not)
+const TEA_ACCOUNTS = new Set(['f1d40ca5b81e82685a926ccd1fdca17d507860ccc24294ef280ae3ef2cd2876d', '8384c1e9ca9803b963fcb194dada4470a8eab0ba27969205a4d625546681a935', '1654cb2d58e524e7212cba5275ca3bd8eb212f9c8326b4f1f997950670330f26']);
+const sha256 = async (s) => [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s)))].map((b) => b.toString(16).padStart(2, '0')).join('');
+addEventListener('st-user', async (e) => { // sent by js/auth.js once the session is known (cosmetic only: it chooses a picture, it grants nothing)
+  const u = e.detail, owner = !!(u && u.confirmed && TEA_ACCOUNTS.has(await sha256(String(u.email).toLowerCase())));
   try { owner ? localStorage.setItem('st-owner', '1') : localStorage.removeItem('st-owner'); } catch {}
   if (!FORCE_DOOR && DOOR === owner) applyDoor(!owner);
 });
