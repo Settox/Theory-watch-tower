@@ -73,7 +73,7 @@ async function hydrate(root) {
 }
 function styleNode(el, n) {
   el.style.left = n.x + 'px'; el.style.top = n.y + 'px'; el.style.width = n.w + 'px'; el.style.height = n.h + 'px';
-  el.style.setProperty('--nc', n.color || PALETTE[0]); el.style.setProperty('--fs', (n.fs || 13) + 'px');
+  el.style.setProperty('--nc', n.color || PALETTE[0]); el.style.setProperty('--fs', (n.fs || 13) + 'px'); if (n.tc) el.style.setProperty('--tc', n.tc); else el.style.removeProperty('--tc');
   el.classList.toggle('bare', !!n.bare); el.classList.toggle('locked', !!n.locked); el.classList.toggle('group', !!n.group);
   const lk = el.querySelector('.node-lock'); lk.replaceChildren(ic(n.locked ? 'lock' : 'unlock', 14)); lk.title = lk.ariaLabel = n.locked ? 'Unlock' : 'Lock'; lk.classList.toggle('on', !!n.locked);
   const shp = SHAPES.includes(n.shape) ? n.shape : 'rounded'; el.className = el.className.replace(/shp-\w+/g, '').trim() + ' shp-' + shp;
@@ -128,7 +128,7 @@ export function refreshNode(id) { const n = findNode(id), old = els[id]; if (!n)
 export function addNode(p = {}) {
   if (app.readonly) return toast('This canvas is read-only');
   const c = viewCenter();
-  const n = { id: uid(), x: Math.round(p.x ?? c.x - 115 + Math.random() * 80 - 40), y: Math.round(p.y ?? c.y - 90 + Math.random() * 80 - 40), w: p.w || 240, h: p.h || 180, title: p.title || 'New star', body: sanitize(p.body || ''), source: p.source || '', color };
+  const n = { id: uid(), x: Math.round(p.x ?? c.x - 115 + Math.random() * 80 - 40), y: Math.round(p.y ?? c.y - 90 + Math.random() * 80 - 40), w: p.w || 240, h: p.h || 180, title: p.title || 'New star', body: sanitize(p.body || ''), source: p.source || '', color: p.color || color };
   page().nodes.push(n); sel.clear(); sel.add(n.id); selConn = null; render(); save();
   if (!p.body) setTimeout(() => { const t = els[n.id]?.querySelector('.node-title'); if (t) { t.focus(); document.getSelection().selectAllChildren(t); } }, 50);
   return n;
@@ -274,6 +274,9 @@ function updateBar() {
   PALETTE.forEach((p) => { const s = document.createElement('button'); s.className = 'sw'; s.style.background = p; s.setAttribute('aria-label', 'Color ' + p); s.onclick = () => setColor(p); bar.appendChild(s); });
   const pick = document.createElement('input'); pick.type = 'color'; pick.title = 'Custom colour'; pick.setAttribute('aria-label', 'Custom colour'); pick.value = /^#[0-9a-f]{6}$/i.test((ns[0] || c || {}).color || '') ? (ns[0] || c).color : '#e8c872'; pick.oninput = () => setColor(pick.value); bar.appendChild(pick);
   if (c) { Object.keys(KIND).forEach((k) => { const b = btn(KIND[k].g + ' ' + KIND[k].name, () => setLinkKind(c, c.kind === k ? null : k), 'Link type: ' + KIND[k].name); if (c.kind === k) b.classList.add('on'); }); btn('Label', () => editLabel(c)); btn('Straighten', () => { delete c.bx; delete c.by; renderLinks(); save(); }); btn('Delete', () => removeConnection(c.id)); return; }
+  const tcol = document.createElement('input'); tcol.type = 'color'; tcol.title = 'Text colour'; tcol.setAttribute('aria-label', 'Text colour'); tcol.className = 'tc'; tcol.value = /^#[0-9a-f]{6}$/i.test(ns[0].tc || '') ? ns[0].tc : '#f4f1e8';
+  tcol.oninput = () => { ns.forEach((n) => { n.tc = tcol.value; styleNode(els[n.id], n); }); save(); }; bar.appendChild(tcol);
+  if (ns.some((n) => n.tc)) btn('Aa ✕', () => { ns.forEach((n) => { delete n.tc; styleNode(els[n.id], n); }); save(); updateBar(); }, 'Back to the default text colour');
   btn('A−', () => ns.forEach((n) => { n.fs = Math.max(9, (n.fs || 13) - 1); styleNode(els[n.id], n); save(); }), 'Smaller text');
   btn('A+', () => ns.forEach((n) => { n.fs = Math.min(30, (n.fs || 13) + 1); styleNode(els[n.id], n); save(); }), 'Larger text');
   btn('Media', () => emit('add-media', [...sel][0]), 'Add image or video to this star'); 

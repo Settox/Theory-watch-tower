@@ -95,5 +95,4 @@ export function init({ h, btn, openModal }) {
           ro ? '' : btn(rec ? 'Stop recording' : '● Record new', () => { close(); rec ? stop() : start(); }), btn('Close', close)));
     });
   }
-  emit('register-tool', { label: 'Journeys', fn: modal });
 }

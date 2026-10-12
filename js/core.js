@@ -69,10 +69,10 @@ export const idb = {
 /* ---------- state ---------- */
 const PERSONAL_KEY = 'spazio-teorie-v3';
 const ROOM_PREFIX = 'spazio-teorie-room-v3:';
-export const app = { state: null, room: null, supabase: null, serverReady: false, mediaUrls: {}, readonly: false, writeBlock: false, loadError: false, dirty: false, serverStars: 0 };
-/* who am I: a stable id per browser (not an account) + display name */
+export const app = { state: null, room: null, supabase: null, user: null, dbRole: null, serverReady: false, mediaUrls: {}, readonly: false, writeBlock: false, loadError: false, dirty: false, serverStars: 0 };
+/* who am I: a stable id per browser (soft roles and presence keep using it) + display name; `account` is the signed-in user's id, if any */
 if (!settings.uid) { settings.uid = uid(); saveSettings(); }
-export const me = () => ({ id: settings.uid, name: (settings.name || '').trim() || 'Anonymous' });
+export const me = () => ({ id: settings.uid, account: app.user?.id || null, name: (settings.name || '').trim() || (app.user?.user_metadata?.display_name || '').trim() || (app.user?.email || '').split('@')[0] || 'Anonymous' });
 
 export const defaultState = () => ({ pages: [{ id: uid(), name: 'Constellation 1', nodes: [], connections: [], drawings: [] }], folders: [], volumes: [], current: 0 });
 export const cleanRoom = (r) => String(r || '').trim().replace(/[^a-zA-Z0-9._-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 80) || 'room';
@@ -155,8 +155,23 @@ export async function loadRoomFromServer(room) {
 
 /* ---------- room blobs (images/PDF/EPUB shared through the bucket) ---------- */
 const BUCKET = 'spazio-teorie-files';
+/* Files live on Cloudflare R2 (cloudflare/files-worker) when SUPABASE_CONFIG.filesUrl is set; the Worker applies the same room rules as the database.
+   Files that are not there yet are still read from the old Supabase bucket, so nothing disappears while rooms are being copied over. */
+const filesUrl = () => String((window.SUPABASE_CONFIG && window.SUPABASE_CONFIG.filesUrl) || '').replace(/\/+$/, '');
+export const r2Key = (room, kind, id) => `${filesUrl()}/f/${encodeURIComponent(room)}/${kind}/${encodeURIComponent(id)}`;
+async function r2Headers() {
+  const t = app.supabase ? (await app.supabase.auth.getSession().catch(() => ({ data: {} }))).data?.session?.access_token : null;
+  return t ? { Authorization: 'Bearer ' + t } : {};
+}
+export async function r2Put(room, kind, id, blob) {
+  const r = await fetch(r2Key(room, kind, id), { method: 'PUT', headers: { ...(await r2Headers()), 'Content-Type': blob.type || 'application/octet-stream' }, body: blob });
+  if (!r.ok) throw new Error('R2 ' + r.status);
+}
 export async function uploadBlob(id, blob, kind, room = app.room) {
   if (!room || !app.serverReady) return;
+  if (filesUrl()) {
+    try { await r2Put(room, kind, id, blob); return; } catch (e) { console.warn('R2 upload failed, trying Supabase storage', e); }
+  }
   try {
     const r = await app.supabase.storage.from(BUCKET).upload(`${room}/${kind}/${id}`, blob, { contentType: blob.type || 'application/octet-stream', upsert: true });
     if (r.error) throw r.error;
@@ -168,6 +183,12 @@ export async function downloadBlob(id, kind) {
   const paths = [base];
   if (kind === 'blob') paths.push(...['png', 'jpg', 'jpeg', 'webp', 'gif', 'mp4', 'webm'].map((x) => `${base}.${x}`));
   if (kind === 'pdf') paths.push(base + '.pdf');
+  if (filesUrl()) {
+    const head = await r2Headers();
+    for (const p of paths) { // p = "<room>/<kind>/<id>[.ext]"
+      try { const parts = p.split('/'), r = await fetch(r2Key(parts[0], parts[1], parts.slice(2).join('/')), { headers: head }); if (r.ok) return await r.blob(); } catch {}
+    }
+  }
   for (const p of paths) {
     try { const r = await app.supabase.storage.from(BUCKET).download(p); if (!r.error && r.data) return r.data; } catch {}
   }

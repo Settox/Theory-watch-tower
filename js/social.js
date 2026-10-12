@@ -17,7 +17,7 @@ const panels = {};
 const meta = () => cleanMeta(app.state.room);
 const roleOf = (u) => { const m = meta(); if (!m) return 'editor'; if (u === m.owner) return 'editor'; return Object.hasOwn(m.roles, u) ? m.roles[u] : m.defaultRole; };
 const isOwner = () => { const m = meta(); return !!m && m.owner === ME.id; };
-const selfRole = () => { const m = meta(), explicit = m && (m.owner === ME.id || Object.hasOwn(m.roles, ME.id)); return !explicit && GUEST ? 'viewer' : roleOf(ME.id); };
+const selfRole = () => { if (app.dbRole === 'viewer') return 'viewer'; const m = meta(), explicit = m && (m.owner === ME.id || Object.hasOwn(m.roles, ME.id)); return !explicit && GUEST ? 'viewer' : roleOf(ME.id); };
 function applyRole() {
   if (VIEW || !app.room) return; const v = selfRole() === 'viewer'; if (v === app.readonly) return;
   app.readonly = v; document.body.classList.toggle('readonly', v); map.render(); renderPeers(); toast(v ? 'You are a viewer in this room.' : 'You can edit in this room.');
@@ -138,7 +138,7 @@ const lastSeen = +localStorage.getItem('st-lastvisit:' + KEY) || 0;
 let readAt = lastSeen;
 if (!Array.isArray(acts)) acts = [];
 const unread = () => acts.filter((a) => a.t > readAt && a.u !== ME.id).length;
-function badge() { const b = $('btnCollab'); if (!b) return; let d = b.querySelector('.st-dot'); if (!d) { d = H.h('i', { className: 'st-dot' }); b.append(d); } d.hidden = !unread(); }
+function badge() { const b = $('btnSettings'); if (!b) return; let d = b.querySelector('.st-dot'); if (!d) { d = H.h('i', { className: 'st-dot' }); b.append(d); } d.hidden = !unread(); }
 export function rec(kind, text, who, ref = {}, u = null) {
   const t = Date.now(), last = acts.slice(-5).reverse().find((a) => a.k === kind && a.who === who && a.nid === ref.nid && t - a.t < 60000);
   if (last && kind !== 'added' && kind !== 'deleted' && kind !== 'linked') { last.text = text; last.t = t; } else acts.push({ t, k: kind, who: str(who, 40) || 'Someone', text: str(text, 200), u, ...ref });
@@ -194,13 +194,111 @@ function remoteOps(l, pid) { // called by collab just before it applies a peer's
 
 /* ---------- share links ---------- */
 const copyRow = (label, url) => H.h('label', { textContent: label }, H.h('div', { style: 'display:flex;gap:6px' }, H.h('input', { value: url, readOnly: true, onfocus: (e) => e.target.select() }), H.btn('Copy', () => copyText(url).then(() => toast('Link copied')))));
-function shareModal() {
-  if (!app.room) return toast('Join a room first (Room button).');
-  const base0 = `${location.origin}${location.pathname}?room=${encodeURIComponent(app.room)}`;
-  H.openModal((card, close) => card.append(H.h('h2', { className: 'serif', textContent: 'Share links' }), copyRow('Invite link (can edit)', base0), copyRow('Guest link (opens as viewer)', base0 + '&role=viewer'),
-    H.h('p', { className: 'hint', textContent: 'Both links are only as private as the room name: anyone who has the link, or guesses the name, gets in. The guest link just asks the app to open read-only; the owner’s roles win, and it is not a lock.' }),
-    H.h('div', { style: 'display:flex;justify-content:flex-end' }, H.btn('Close', close, 'primary'))));
+/* who can enter this room: embedded in Settings, Room (main.js asks for it with the "room-access" event) */
+function accessInto(root, room) {
+  const sb = app.supabase, body = H.h('div', { style: 'display:grid;gap:14px' });
+  root.append(body);
+  {
+    (async () => {
+      const A = await import('./auth.js'), mine = app.user ? await A.roomAccess(room) : null;
+      if (mine !== 'owner') {
+        body.append(H.h('p', { className: 'hint', textContent: app.user ? 'Only the room owner can change who has access.' : 'Sign in to manage this room.' }));
+        return;
+      }
+      const hint = (t) => H.h('p', { className: 'hint', textContent: t });
+      const say = H.h('p', { className: 'hint', role: 'status' });
+      const modeLine = H.h('p', { style: 'margin:0;font-weight:500' });
+      const MODES = { whitelist: 'Whitelist: only you and the people listed below can enter. Passwords are ignored.', password: 'Password: signed-in people who type it can enter.', open: 'Open: anyone with the room name can enter and edit.' };
+      const refreshMode = async () => { const r = await sb.rpc('spazio_room_mode', { p_room: room }); modeLine.textContent = MODES[r.data] || ''; };
+      const roleSel = (val) => H.h('select', {}, ...['editor', 'viewer'].map((r) => H.h('option', { value: r, textContent: r, selected: r === val })));
+
+      /* whitelist */
+      const wlList = H.h('div', { style: 'display:grid;gap:6px' });
+      const renderWl = async () => {
+        const { data, error } = await sb.from('spazio_room_whitelist').select('email, role').eq('server_id', room).order('created_at');
+        wlList.textContent = '';
+        if (error) return wlList.append(hint(error.message));
+        if (!data.length) wlList.append(hint('Nobody listed. Add an email to close the room to everyone else.'));
+        data.forEach((w) => {
+          const sel = roleSel(w.role);
+          sel.onchange = async () => { const r = await sb.from('spazio_room_whitelist').update({ role: sel.value }).eq('server_id', room).eq('email', w.email); toast(r.error ? r.error.message : 'Role changed.'); };
+          wlList.append(H.h('div', { style: 'display:flex;gap:8px;align-items:center;justify-content:space-between' }, H.h('span', { textContent: w.email, style: 'overflow-wrap:anywhere' }), H.h('span', { style: 'display:flex;gap:6px' }, sel,
+            H.btn('Remove', async () => { const r = await sb.from('spazio_room_whitelist').delete().eq('server_id', room).eq('email', w.email); toast(r.error ? r.error.message : 'Removed.'); renderWl(); refreshMode(); }))));
+        });
+      };
+      const em = H.h('input', { type: 'email', placeholder: 'friend@example.com', autocomplete: 'off' }), addRole = roleSel('editor');
+      const add = H.btn('Add to whitelist', async () => {
+        const e = em.value.trim().toLowerCase();
+        if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e)) { say.textContent = 'Enter a valid email address.'; return; }
+        const r = await sb.from('spazio_room_whitelist').insert({ server_id: room, email: e, role: addRole.value });
+        if (r.error) { say.textContent = /duplicate/i.test(r.error.message) ? 'That address is already on the list.' : r.error.message; return; }
+        say.textContent = `${e} can now enter as ${addRole.value}. They need an account with this address.`; em.value = ''; renderWl(); refreshMode();
+      }, 'primary');
+
+      /* passwords (only matter while the whitelist is empty) */
+      const status = await sb.rpc('spazio_room_password_status', { p_room: room }).then((r) => r.data || {}).catch(() => ({}));
+      const pwField = (label, key) => {
+        const i = H.h('input', { type: 'password', autocomplete: 'new-password', placeholder: status[key] ? 'Set (type to replace)' : 'Not set', minLength: 10 });
+        const clear = status[key] ? H.btn('Remove', async () => { const r = await sb.rpc('spazio_set_room_passwords', { p_room: room, [key === 'editor' ? 'p_editor' : 'p_viewer']: '' }); say.textContent = r.error ? r.error.message : `The ${key} password was removed.`; if (!r.error) { i.placeholder = 'Not set'; clear.remove(); refreshMode(); } }) : '';
+        return { i, row: H.h('label', { textContent: label }, H.h('div', { style: 'display:flex;gap:6px' }, i, clear)) };
+      };
+      const ed = pwField('Editor password', 'editor'), vw = pwField('Viewer password', 'viewer');
+      const savePw = H.btn('Save passwords', async () => {
+        const e = ed.i.value, v = vw.i.value;
+        if (!e && !v) { say.textContent = 'Type a new password (at least 10 characters).'; return; }
+        const r = await sb.rpc('spazio_set_room_passwords', { p_room: room, p_editor: e || null, p_viewer: v || null });
+        if (r.error) { say.textContent = r.error.message; return; }
+        say.textContent = 'Saved. Send the password in a separate message.'; ed.i.value = vw.i.value = ''; refreshMode();
+      });
+
+      /* password-joined members */
+      const mList = H.h('div', { style: 'display:grid;gap:6px' });
+      const renderMembers = async () => {
+        const { data, error } = await sb.from('spazio_room_members').select('user_id, role, display_name').eq('server_id', room).order('created_at');
+        mList.textContent = '';
+        if (error) return mList.append(hint(error.message));
+        if (!data.length) return mList.append(hint('Nobody has joined with a password.'));
+        data.forEach((m) => {
+          const sel = roleSel(m.role);
+          sel.onchange = async () => { const r = await sb.from('spazio_room_members').update({ role: sel.value }).eq('server_id', room).eq('user_id', m.user_id); toast(r.error ? r.error.message : 'Role changed.'); };
+          mList.append(H.h('div', { style: 'display:flex;gap:8px;align-items:center;justify-content:space-between' }, H.h('span', { textContent: m.display_name || 'Member' }), H.h('span', { style: 'display:flex;gap:6px' }, sel,
+            H.btn('Remove', async () => { const r = await sb.from('spazio_room_members').delete().eq('server_id', room).eq('user_id', m.user_id); toast(r.error ? r.error.message : 'Removed.'); renderMembers(); }))));
+        });
+      };
+
+      /* storage: copy this room's files from the old Supabase bucket to Cloudflare R2 (only shown once filesUrl is configured) */
+      const C = await import('./core.js'), migrate = H.h('div', { style: 'display:grid;gap:8px' });
+      if (window.SUPABASE_CONFIG && window.SUPABASE_CONFIG.filesUrl) {
+        const out = H.h('p', { className: 'hint', role: 'status' });
+        const go = H.btn('Copy this room’s files to Cloudflare R2', async () => {
+          go.disabled = true; let done = 0, failed = 0, total = 0;
+          try {
+            const bucket = sb.storage.from('spazio-teorie-files'), top = (await bucket.list(room, { limit: 1000 })).data || [], jobs = [];
+            for (const f of top) {
+              if (f.id) { jobs.push(['blob', f.name, room + '/' + f.name]); continue; }
+              const kids = (await bucket.list(`${room}/${f.name}`, { limit: 1000 })).data || [];
+              kids.filter((k) => k.id).forEach((k) => jobs.push([f.name, k.name, `${room}/${f.name}/${k.name}`]));
+            }
+            total = jobs.length;
+            for (const [kind, name, path] of jobs) {
+              out.textContent = `Copying ${done + failed + 1} of ${total}…`;
+              try { const { data, error } = await bucket.download(path); if (error || !data) throw error; await C.r2Put(room, kind || 'blob', name, data); done++; } catch { failed++; }
+            }
+          } catch (e) { out.textContent = e.message || 'Could not list the files.'; go.disabled = false; return; }
+          out.textContent = `Done: ${done} copied${failed ? `, ${failed} failed (run it again)` : ''}. The old copies stay in Supabase until you delete them.`; go.disabled = false;
+        });
+        migrate.append(H.h('h3', { className: 'serif', textContent: 'File storage' }), hint('Files for new uploads go to Cloudflare R2. This copies the files this room already has.'), go, out);
+      }
+      body.append(modeLine,
+        H.h('h3', { className: 'serif', textContent: 'Whitelist' }), hint('Takes priority over everything. Add the email each person signed up with; they sign in and open the room, no password needed.'),
+        wlList, H.h('div', { style: 'display:flex;gap:6px;flex-wrap:wrap' }, em, addRole, add),
+        H.h('h3', { className: 'serif', textContent: 'Passwords' }), hint('Used only while the whitelist is empty. Different passwords give editor or viewer rights.'), ed.row, vw.row, savePw, say,
+        H.h('h3', { className: 'serif', textContent: 'Joined with a password' }), mList, migrate);
+      refreshMode(); renderWl(); renderMembers();
+    })();
+  }
 }
+function shareModal() { emit('open-settings', 'room'); }
 
 /* ---------- public canvases ---------- */
 const rand = (n) => { const a = crypto.getRandomValues(new Uint8Array(n)), s = 'abcdefghijklmnopqrstuvwxyz0123456789'; return [...a].map((x) => s[x % 36]).join(''); };
@@ -263,7 +361,8 @@ export function readerIn(d, pid) {
 export function init(helpers) {
   H = helpers; panel('vote', 'Vote ranking', voteDraw); panel('act', 'Activity', actDraw);
   if (VIEW) { viewMode(); return; }
-  const tool = (label, fn) => emit('register-tool', { label, fn });
+  const tool = (label, fn) => emit('register-tool', { label, fn, room: true });
+  on('room-access', ({ box, room }) => accessInto(box, room));
   tool('Room members & roles', rolesModal); tool('Share links', shareModal); tool('Vote on stars (ranking)', () => panels.vote.toggle());
   tool('Activity', () => { panels.act.toggle(); if (!panels.act.box.hidden) { readAt = Date.now(); badge(); } }); tool('Publish canvas', publishModal);
   on('node-rendered', ({ n, el }) => decorate(n, el));

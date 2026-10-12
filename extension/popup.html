@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Clip to The Forbidden Library</title>
+<link rel="stylesheet" href="popup.css">
+</head>
+<body>
+<main>
+  <h1>✦ Clip to the Library</h1>
+  <section class="page">
+    <b id="ptitle">…</b>
+    <small id="purl"></small>
+    <p id="psel" class="sel"></p>
+  </section>
+  <label>Space
+    <select id="space"></select>
+  </label>
+  <label id="roomRow" hidden>Room name
+    <input id="room" placeholder="room-name" autocomplete="off">
+  </label>
+  <label id="canvasRow">Canvas
+    <select id="canvas"></select>
+  </label>
+  <button id="clip" class="primary" type="button">Clip it</button>
+  <p id="msg" class="msg" role="status"></p>
+  <details id="set">
+    <summary>Settings</summary>
+    <label>App address
+      <input id="app" placeholder="https://your-name.github.io/forbidden-library/" autocomplete="off">
+    </label>
+    <button id="connect" type="button">Connect: list my canvases and rooms</button>
+    <small>Connect asks Chrome for permission to read that one address, only to copy the names of your canvases and rooms. Open the app once afterwards to refresh the list.</small>
+  </details>
+</main>
+<script type="module" src="popup.js"></script>
+</body>
+</html>

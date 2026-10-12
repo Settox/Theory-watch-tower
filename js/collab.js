@@ -6,7 +6,7 @@ import * as map from './map.js';
 const SOURCES = ['https://esm.sh/trystero@0.21/torrent', 'https://esm.sh/trystero@0.21/nostr', 'https://cdn.jsdelivr.net/npm/trystero@0.21/+esm'];
 const MAX = 2e6, CHUNK = 192 * 1024;
 const FIELDS = {
-  node: ['x', 'y', 'w', 'h', 'title', 'body', 'source', 'fs', 'color', 'bare', 'locked', 'group', 'comments', 'shape', 'icon', 'react', 'web'],
+  node: ['x', 'y', 'w', 'h', 'title', 'body', 'source', 'fs', 'color', 'tc', 'bare', 'locked', 'group', 'comments', 'shape', 'icon', 'react', 'web'],
   conn: ['from', 'to', 'color', 'label', 'bx', 'by', 'kind'], page: ['name', 'pubId'],
   vol: ['name', 'text', 'type', 'pdf', 'folderId', 'coverId', 'locked', 'tr', 'lang', 'srcId', 'hl', 'bm', 'url'],
   draw: ['color', 'w', 'op', 'pts'], folder: ['name', 'locked'],
@@ -42,7 +42,7 @@ export const cleanMeta = (m) => { // room metadata {owner, roles:{userId:role}, 
 const order = (v) => (Array.isArray(v) && v.length <= 5000 ? v.filter(isId) : undefined);
 const cmts = (v) => (Array.isArray(v) ? v.slice(-100).filter((c) => c && typeof c === 'object' && typeof c.text === 'string').map((c) => ({ id: String(c.id || '').slice(0, 40), by: String(c.by || '').slice(0, 60), t: Number.isFinite(c.t) ? c.t : 0, text: c.text.slice(0, 1000) })) : undefined);
 const V = {
-  node: { web: (v) => (v && typeof v.url === 'string' && /^https?:\/\/[^\s]{1,1990}$/i.test(v.url) ? { url: v.url } : undefined), comments: cmts, shape: str(20), icon: str(8), react: rv, x: num(-1e6, 1e6), y: num(-1e6, 1e6), w: num(60, 5000), h: num(40, 5000), title: str(2000), body: (v) => (typeof v === 'string' && v.length <= MAX ? sanitize(v) : undefined), source: src, fs: num(6, 96), color: col, bare: bool, locked: bool, group: bs },
+  node: { web: (v) => (v && typeof v.url === 'string' && /^https?:\/\/[^\s]{1,1990}$/i.test(v.url) ? { url: v.url } : undefined), comments: cmts, shape: str(20), icon: str(8), react: rv, x: num(-1e6, 1e6), y: num(-1e6, 1e6), w: num(60, 5000), h: num(40, 5000), title: str(2000), body: (v) => (typeof v === 'string' && v.length <= MAX ? sanitize(v) : undefined), source: src, fs: num(6, 96), color: col, tc: col, bare: bool, locked: bool, group: bs },
   conn: { from: idv, to: idv, color: col, label: str(300), bx: num(-1e6, 1e6), by: num(-1e6, 1e6), kind: str(20) },
   page: { name: str(200), pubId: str(40) },
   vol: { name: str(500), text: str(MAX), type: str(20), pdf: bs, folderId: idv, coverId: idv, locked: bool, tr, lang: str(20), srcId: idv, hl: tr, bm: tr, url: (v) => (typeof v === 'string' && /^https?:\/\/[^\s]{1,990}$/i.test(v) ? v : undefined) },
@@ -399,7 +399,10 @@ export async function init(helpers = {}) {
   if (!(await loadTrystero())) { status('Server · ' + room + ' (P2P unavailable)'); toast('Live collaboration unavailable right now. Changes still sync through the server.'); return; }
   SITE = hashStr(myId()) % 1000; { const hh = parseFloat(settings.hue); MY_HUE = isFinite(hh) ? clamp(hh, 0, 360) : hashHue(myId()); }
   MY_NAME = String(settings.name || '').trim().slice(0, 40) || 'User ' + (1000 + (hashStr(myId()) % 9000));
-  let ro; try { ro = join({ appId: 'spazio-teorie-app-v1' }, 'room-' + room); } catch (e) { toast('Collaboration unavailable: ' + e.message); return; }
+  // private rooms: the live channel name includes a secret only members can read, so knowing the room name is not enough to join it
+  let channel = 'room-' + room;
+  if (app.user && app.serverReady) { try { const { data } = await app.supabase.rpc('spazio_room_secret', { p_room: room }); if (data) channel += '-' + data; } catch {} }
+  let ro; try { ro = join({ appId: 'spazio-teorie-app-v1' }, channel); } catch (e) { toast('Collaboration unavailable: ' + e.message); return; }
   const A = (n) => ro.makeAction(n), st = A('state'), nd = A('need'), fl = A('file'), hi = A('hello'), op = A('ops'), cu = A('cur'), sf = A('sfx'), wp = A('wparty');
   C.send = { state: st[0], need: nd[0], file: fl[0], hello: hi[0], ops: op[0], cur: cu[0], sfx: sf[0], wp: wp[0] };
   NET_ACTIONS.forEach((n) => { const a = A(n); C.send[n] = a[0]; a[1]((d, pid) => fire(n, d, pid)); }); // after the table above, or pres/rpos get wiped

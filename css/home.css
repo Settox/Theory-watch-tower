@@ -1,4 +1,4 @@
-/* The Forbidden Library: homepage. One bold thing (the constellation doorway), everything else quiet. */
+/* The Forbidden Library: homepage. One bold thing (the constellation doorway in the public build, the tea party in the friends' build), everything else quiet. */
 body { overflow-x: hidden; }
 .wrap { max-width: 1120px; margin: 0 auto; padding: 0 20px; position: relative; z-index: 1; }
 main, header, footer { position: relative; z-index: 1; }
@@ -7,7 +7,7 @@ main, header, footer { position: relative; z-index: 1; }
 .brand { display: inline-flex; align-items: center; gap: 10px; color: var(--star); text-decoration: none; font: 500 17px var(--serif); font-variation-settings: 'opsz' 24; letter-spacing: .01em; }
 .brand svg { color: var(--gold); }
 
-/* ---------- hero: the doorway ---------- */
+/* ---------- hero: the title ---------- */
 .hero { min-height: calc(100svh - 56px); display: grid; place-items: center; padding: 8px 16px 56px; position: relative; }
 .portal { position: relative; width: min(540px, 92vw, calc((100svh - 150px) * 600 / 780)); aspect-ratio: 600 / 780; }
 #arch { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
@@ -32,7 +32,7 @@ main, header, footer { position: relative; z-index: 1; }
 .cue { position: absolute; bottom: 14px; left: 50%; translate: -50% 0; color: var(--dim); display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--line); text-decoration: none; }
 .cue:hover, .cue:focus-visible { color: var(--gold); border-color: var(--gold); }
 
-/* the one orchestrated moment: the doorway builds itself, then the words arrive */
+/* the one orchestrated moment: the doorway builds itself (public build), then the words arrive */
 @media (prefers-reduced-motion: no-preference) {
   #arch .draw { stroke-dasharray: 1; stroke-dashoffset: 1; animation: draw 1.5s cubic-bezier(.3, .6, .2, 1) forwards; animation-delay: var(--d, 0s); }
   #arch .pt, #arch .spark { opacity: 0; animation: pop .6s ease-out forwards; animation-delay: var(--d, 0s); }
@@ -44,7 +44,16 @@ main, header, footer { position: relative; z-index: 1; }
 @keyframes pop { from { opacity: 0; transform: scale(.2); } to { opacity: 1; transform: scale(1); } }
 @keyframes fade { to { opacity: 1; } }
 @keyframes rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+
 #arch .pt { transform-box: fill-box; transform-origin: center; }
+
+/* friends' build (<body data-door="off">): no doorway, so the title is set in the open sky above the tea party */
+body[data-door='off'] .hero { align-items: start; padding-top: clamp(20px, 8vh, 84px); }
+body[data-door='off'] .portal { width: min(760px, 92vw); aspect-ratio: auto; }
+body[data-door='off'] .portal-copy { position: static; inset: auto; gap: 14px; }
+body[data-door='off'] .portal-copy h1 { font-size: clamp(2.6rem, 7.2vw, 4.8rem); }
+body[data-door='off'] .portal-copy p { max-width: 36ch; }
+body[data-door='off'] #arch { display: none; }
 
 /* ---------- shelves ---------- */
 .shelves { padding-top: 24px; padding-bottom: 8px; background: linear-gradient(transparent, color-mix(in srgb, var(--ink) 55%, transparent) 140px); }
@@ -98,7 +107,7 @@ form.slot small { font-size: 12px; color: var(--dim); text-align: left; line-hei
 .inside p { margin: 0; color: var(--dim); font-size: 14.5px; line-height: 1.6; max-width: 34ch; }
 footer { padding-top: 22px; padding-bottom: 40px; color: var(--dim); font-size: 13px; border-top: 1px solid var(--line); }
 
-/* day theme: books become parchment-toned, the doorway turns to ink */
+/* day theme: books become parchment-toned */
 :root[data-theme='day'] .book { background: linear-gradient(165deg, hsl(var(--h) 45% 90%), hsl(var(--h) 38% 78%)); box-shadow: 0 10px 22px rgba(60, 40, 10, .18); }
 :root[data-theme='day'] .bk-thumb { background: color-mix(in srgb, #fff 55%, transparent); }
 :root[data-theme='day'] .portal-copy h1 { text-shadow: none; }
@@ -110,3 +119,40 @@ footer { padding-top: 22px; padding-bottom: 40px; color: var(--dim); font-size: 
   .btn.big { padding: 10px 18px; font-size: 14px; }
 }
 @media (max-width: 400px) { .brand span { display: none; } }
+
+/* ---------- constellation fire (drawn behind the content) ---------- */
+#fire, #hall { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; }
+.nav-tools { display: flex; gap: 8px; }
+#butBtn svg { color: #7bd88f; }
+#butBtn[aria-pressed='false'] { opacity: .65; }
+#butBtn[aria-pressed='false'] svg { color: var(--dim); }
+#butBtn, .nav .btn { padding: 6px 12px; font-size: 13px; }
+
+
+/* ---------- account dialog + toast (the sign-in form lives on this page only) ---------- */
+#modal { position: fixed; inset: 0; z-index: 65; background: rgba(5, 8, 20, .66); display: grid; place-items: center; padding: 16px; }
+#modal[hidden] { display: none; }
+#modal .card { width: min(440px, 100%); max-height: 90vh; overflow: auto; background: var(--ink2); border: 1px solid var(--line2, var(--line)); border-radius: 14px; padding: 18px; display: grid; gap: 10px; }
+#modal h2 { margin: 0; }
+#modal label { display: grid; gap: 4px; font-size: 13px; color: var(--dim); }
+#modal input { font: 400 14px var(--sans); padding: 9px 10px; }
+#modal .hint { margin: 0; color: var(--dim); font-size: 12.5px; line-height: 1.45; }
+#toast { position: fixed; z-index: 80; left: 50%; bottom: 40px; transform: translate(-50%, 20px); background: var(--star); color: var(--ink); padding: 9px 16px; border-radius: 999px; opacity: 0; pointer-events: none; transition: .2s; max-width: calc(100vw - 24px); }
+#toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+/* sign-in form */
+#modal .card { width: min(400px, 100%); padding: 26px 26px 22px; gap: 14px; box-shadow: 0 30px 80px rgba(0, 0, 0, .5), 0 0 0 1px color-mix(in srgb, var(--gold) 14%, transparent); }
+.auth-head { display: grid; gap: 6px; justify-items: center; text-align: center; margin-bottom: 4px; }
+.auth-star { color: var(--gold); font-size: 18px; filter: drop-shadow(0 0 8px var(--gold)); line-height: 1; }
+.auth-head h2 { font-size: 1.55rem; font-weight: 400; letter-spacing: -.01em; }
+.auth-sub { margin: 0; color: var(--dim); font-size: 13.5px; line-height: 1.5; max-width: 32ch; }
+.auth-why { margin: 0; padding: 9px 12px; border-radius: 10px; font-size: 13px; line-height: 1.45; color: var(--star); background: color-mix(in srgb, var(--gold) 10%, transparent); border: 1px solid color-mix(in srgb, var(--gold) 28%, transparent); }
+#modal label { font-weight: 500; font-size: 12.5px; letter-spacing: .02em; }
+#modal input { width: 100%; box-sizing: border-box; border-radius: 10px; padding: 11px 12px; }
+#modal input:focus-visible { outline: 2px solid var(--gold); outline-offset: 1px; }
+#modal .hint { min-height: 1.2em; margin: -4px 0 0; text-align: center; }
+.auth-go { width: 100%; justify-content: center; padding: 12px 16px; font-size: 15px; }
+.auth-links { display: grid; gap: 8px; justify-items: center; font-size: 13.5px; color: var(--dim); }
+.auth-link { background: none; border: 0; padding: 0; margin: 0; font: inherit; color: var(--star); cursor: pointer; text-decoration: underline; text-decoration-color: color-mix(in srgb, var(--star) 35%, transparent); text-underline-offset: 3px; }
+.auth-link:hover, .auth-link:focus-visible { color: var(--gold); text-decoration-color: var(--gold); outline: none; }
+.auth-note { margin: 4px 0 0; padding-top: 14px; border-top: 1px solid var(--line); font-size: 12px; line-height: 1.5; color: var(--dim); text-align: center; }

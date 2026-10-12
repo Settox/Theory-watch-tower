@@ -1,6 +1,9 @@
 // Cosmic backdrop: drifting nebulae, three parallax star layers, constellation lines, shooting stars.
+import { butterflies } from './butterflies.js';
+
 export function sky(canvas) {
   const ctx = canvas.getContext('2d');
+  let bf = false, BF = null; // Butterflies switch: green butterflies drift where the stars were
   const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
   const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
   let W, H, stars = [], dust = [], neb = [], shoots = [], poolArea = 1;
@@ -31,7 +34,7 @@ export function sky(canvas) {
     const dpr = Math.min(devicePixelRatio || 1, 2), nw = innerWidth, nh = innerHeight, first = !stars.length;
     if (!first && nw === W && nh === H) return;
     const sx = first ? 1 : nw / W, sy = first ? 1 : nh / H;
-    W = nw; H = nh; canvas.width = W * dpr; canvas.height = H * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    W = nw; H = nh; BF = null; canvas.width = W * dpr; canvas.height = H * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     if (!first) { for (const d of dust) { d.x *= sx; d.y *= sy; } for (const q of stars) { q.x *= sx; q.y *= sy; } return; }
     const area = poolArea = Math.max(W * H, (screen.width || 0) * (screen.height || 0)); // sized for the biggest window, so growing the window never runs short
     dust = Array.from({ length: Math.round(area / 1800) }, () => ({ x: Math.random() * W, y: Math.random() * H, r: Math.random() * 0.7 + 0.2, a: Math.random() * 0.5 + 0.15, ph: Math.random() * 6.28 }));
@@ -72,6 +75,7 @@ export function sky(canvas) {
       }
     }
     ctx.globalCompositeOperation = 'source-over';
+    if (bf) { (BF ||= butterflies(W, H, reduce)).step(ctx, t, W, H, isDay); if (!reduce) requestAnimationFrame(frame); return; }
     // dust
     ctx.fillStyle = star;
     for (let di = 0; di < nDust; di++) { const d = dust[di]; ctx.globalAlpha = d.a * (0.6 + 0.4 * Math.sin(t * 0.001 + d.ph)) * (isDay ? 0.4 : 1); ctx.fillRect(d.x, d.y, d.r * 1.4, d.r * 1.4); }
@@ -125,5 +129,5 @@ export function sky(canvas) {
     if (!reduce) requestAnimationFrame(frame);
   }
   requestAnimationFrame(frame);
-  return { redraw: () => reduce && requestAnimationFrame(frame) };
+  return { redraw: () => reduce && requestAnimationFrame(frame), butterflies: (v) => { bf = !!v; if (reduce) requestAnimationFrame(frame); } };
 }

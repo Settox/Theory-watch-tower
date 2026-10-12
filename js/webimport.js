@@ -120,7 +120,6 @@ export function init(H_) {
       setTimeout(() => input.focus(), 30);
     });
   }
-  emit('register-tool', { label: 'Web page in a star…', fn: () => dialog() });
   const row = document.querySelector('.lib-actions');
   if (row && !app.readonly) row.append(Object.assign(btn('', () => dialog(), ''), { title: 'Embed a web page as a star' }));
   row?.lastElementChild?.replaceChildren(ic('globe', 14), 'Web');

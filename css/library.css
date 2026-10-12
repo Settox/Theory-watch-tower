@@ -210,3 +210,12 @@ body.focus-mode #reader .rd-bar { overflow-x: auto; }
 .cover-card { place-items: center; }
 .cover-big { max-width: 100%; max-height: 68vh; object-fit: contain; border-radius: 10px; box-shadow: 0 10px 40px rgba(0, 0, 0, .5); }
 .cover-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+
+/* selection pill: highlight colours + star, floats next to the selected text; also the small menu on a clicked highlight */
+.sel-pill { position: fixed; z-index: 71; display: flex; align-items: center; gap: 6px; padding: 5px 8px; background: var(--ink2); border: 1px solid var(--line2); border-radius: 999px; box-shadow: 0 8px 28px rgba(0, 0, 0, .5); }
+.sel-pill .hl-sw { opacity: 1; }
+.sel-pill .btn { padding: 4px 10px; font-size: 13px; border-radius: 999px; }
+.sel-pill .sp-star { border-color: var(--gold); color: var(--gold); }
+.hl-note { display: block; margin-top: 4px; color: var(--dim); font-style: italic; }
+.pdf-tl mark.uh { cursor: pointer; }
+@media (pointer: coarse) { .sel-pill .btn { min-height: 40px; } .sel-pill .hl-sw { width: 32px; height: 32px; } }

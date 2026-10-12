@@ -34,3 +34,35 @@
 .st-help[hidden] { display: none; }
 .st-banner { position: fixed; left: 50%; bottom: 14px; transform: translateX(-50%); z-index: 70; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: center; max-width: calc(100vw - 24px); padding: 8px 12px; background: var(--ink2); border: 1px solid var(--gold); border-radius: 12px; color: var(--star); font: 13px var(--sans); }
 @media (prefers-reduced-motion: no-preference) { .st-chip { transition: box-shadow .2s, background .2s; } }
+
+/* account / room-password dialogs (same look as the home page sign-in form) */
+.auth-head { display: grid; gap: 6px; justify-items: center; text-align: center; margin-bottom: 4px; }
+.auth-star { color: var(--gold); font-size: 18px; filter: drop-shadow(0 0 8px var(--gold)); line-height: 1; }
+.auth-head h2 { font-size: 1.45rem; font-weight: 400; }
+.auth-sub { margin: 0; color: var(--dim); font-size: 13.5px; line-height: 1.5; max-width: 34ch; }
+.auth-links { display: grid; gap: 8px; justify-items: center; font-size: 13.5px; color: var(--dim); }
+.auth-link { background: none; border: 0; padding: 0; margin: 0; font: inherit; color: var(--star); cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+.auth-link:hover, .auth-link:focus-visible { color: var(--gold); outline: none; }
+
+/* Tools menu headings, tabbed Settings */
+.menu .mhead { padding: 8px 12px 3px; font: 600 10.5px var(--mono); letter-spacing: .09em; text-transform: uppercase; color: var(--dim); cursor: default; pointer-events: none; }
+.menu .mhead:not(:first-child) { margin-top: 4px; border-top: 1px solid var(--line); padding-top: 10px; }
+.set-tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); margin: 2px 0 6px; }
+.set-tab { background: none; border: 0; border-bottom: 2px solid transparent; color: var(--dim); font: inherit; font-size: 13.5px; padding: 8px 12px; cursor: pointer; margin-bottom: -1px; }
+.set-tab[aria-selected='true'] { color: var(--star); border-bottom-color: var(--gold); }
+.set-tab:hover { color: var(--star); }
+.set-pane { display: grid; gap: 12px; }
+.set-pane[hidden] { display: none; }
+.set-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.set-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.set-check { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+#ctxbar input.tc { width: 28px; height: 28px; padding: 0; border: 1px solid var(--line2, var(--line)); border-radius: 8px; background: none; cursor: pointer; }
+
+/* Settings, Room tab */
+#modal .card:has(.set-tabs) { width: min(620px, 100%); }
+.set-sec { display: grid; gap: 10px; padding: 14px 0; border-top: 1px solid var(--line); }
+.set-sec:first-child { border-top: 0; padding-top: 4px; }
+.set-sec > h3 { margin: 0; font-size: 1.05rem; font-weight: 500; }
+.set-act { display: grid; grid-template-columns: minmax(150px, auto) 1fr; gap: 12px; align-items: center; }
+.set-act .hint { margin: 0; }
+@media (max-width: 520px) { .set-act { grid-template-columns: 1fr; gap: 4px; } }

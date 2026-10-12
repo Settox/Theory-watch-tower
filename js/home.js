@@ -1,21 +1,26 @@
-// Homepage: the constellation doorway, plus shelves of your canvases (personal) and rooms (collab), read from this device.
+// Homepage: the title over the library (and, in the public build, the constellation doorway), plus shelves of your canvases (personal) and rooms (collab), read from this device.
 // Only preview.js is imported statically: everything else is optional, so one broken file can never blank the shelves.
 import { preview, countOf } from './preview.js';
 
 const soft = (p) => Promise.resolve(p).catch((e) => console.warn('home:', e));
 soft(import('./themes.js'));                                                       // applies the saved sky
-soft(import('./sky.js').then((m) => m.sky(document.getElementById('sky'))));        // animated background
+const skyReady = soft(import('./sky.js').then((m) => m.sky(document.getElementById('sky'))));        // animated background
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
 
 const root = document.documentElement;
-try { const t = localStorage.getItem('st-theme'); if (t) root.dataset.theme = t; } catch {}
-document.getElementById('themeBtn').onclick = () => {
-  const t = root.dataset.theme === 'day' ? 'night' : 'day';
-  root.dataset.theme = t;
-  try { localStorage.setItem('st-theme', t); } catch {}
-};
+root.dataset.theme = 'night';
 
-/* ---------- the doorway: an arch made of constellation lines that draws itself once ---------- */
+/* ---------- account button: shows who is signed in; the sign-in form itself lives in the app (js/auth.js) ---------- */
+{
+  const b = document.getElementById('accBtn'), c = window.SUPABASE_CONFIG;
+  if (!(window.supabase && c && c.url && c.key)) b.hidden = true;
+  else soft(import('./auth.js').then((m) => m.initHome(b)).catch((e) => { b.hidden = true; throw e; }));
+}
+
+/* ---------- the doorway: an arch made of constellation lines that draws itself once ----------
+   Kept for the public release. Hidden in the friends' build: <body data-door="off"> in index.html (set "on" to show it, or open the page with ?door=1). */
+const FORCE_DOOR = /[?&]door=1/.test(location.search);
+let DOOR = FORCE_DOOR || document.body.dataset.door === 'on';
 function doorway(svg) {
   const NS = 'http://www.w3.org/2000/svg', cx = 300, rad = (d) => (d * Math.PI) / 180;
   const el = (tag, a, parent = svg) => { const e = document.createElementNS(NS, tag); for (const k in a) e.setAttribute(k, a[k]); parent.append(e); return e; };
@@ -41,7 +46,35 @@ function doorway(svg) {
   // a few loose stars inside the doorway, as if the sky continued behind it
   [[205, 235, 1.5], [395, 250, 1.3], [250, 205, 1.1], [352, 215, 1.6], [160, 400, 1.2], [440, 380, 1.4]].forEach(([x, y, r], i) => el('circle', { class: 'pt', cx: x, cy: y, r, style: `--d:${(1.6 + i * 0.12).toFixed(2)}s`, opacity: .7 }));
 }
-try { doorway(document.getElementById('arch')); } catch (e) { console.warn('doorway failed', e); }
+const applyDoor = (on) => { // the door for everyone; the tea party scene only for the owner's account
+  DOOR = on; document.body.dataset.door = on ? 'on' : 'off';
+  const svg = document.getElementById('arch'); svg.textContent = '';
+  if (on) { try { doorway(svg); } catch (e) { console.warn('doorway failed', e); } }
+};
+applyDoor(DOOR);
+addEventListener('st-user', (e) => { // sent by js/auth.js once the session is known (cosmetic only: it chooses a picture, it grants nothing)
+  const u = e.detail, owner = !!(u && u.confirmed && String(u.email).toLowerCase() === 'settineri00@gmail.com');
+  try { owner ? localStorage.setItem('st-owner', '1') : localStorage.removeItem('st-owner'); } catch {}
+  if (!FORCE_DOOR && DOOR === owner) applyDoor(!owner);
+});
+
+/* ---------- scenery: the library is always the background; the butterflies switch swaps the stars for green butterflies ---------- */
+{
+  const butBtn = document.getElementById('butBtn');
+  const get = (k) => { try { return localStorage.getItem(k); } catch { return null; } };
+  const put = (k, v) => { try { localStorage.setItem(k, v); } catch {} };
+  let butOn = get('st-bfly') === 'on'; // off by default: stars are the sky
+  let H, Sk;
+  const sync = () => {
+    document.body.classList.add('hall-on');
+    H?.set(true); Sk?.butterflies(butOn);
+    butBtn.setAttribute('aria-pressed', String(butOn));
+  };
+  butBtn.onclick = () => { butOn = !butOn; put('st-bfly', butOn ? 'on' : 'off'); sync(); };
+  skyReady.then((s) => { Sk = s; sync(); });
+  sync();
+  soft(import('./hall.js').then(({ hall }) => { H = hall(document.getElementById('hall')); sync(); }));
+}
 
 /* ---------- helpers ---------- */
 const cleanRoom = (r) => String(r || '').trim().replace(/[^a-zA-Z0-9._-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 80) || 'room';

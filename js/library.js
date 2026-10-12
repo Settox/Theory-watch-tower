@@ -1,8 +1,8 @@
 // Library: folders + volumes (schema identical to v1), drag & drop, covers, notes, full-text search, PDF/EPUB hooks.
 import { $, app, uid, save, toast, on, emit, escapeHtml, storeBlob, mediaUrl, idb, clamp } from './core.js';
 import * as map from './map.js';
-import { ingestPdf, openPdf, prog, bookmarks, peersOn, onPeer } from './pdf.js';
-import { ingestEpub, openEpub } from './epub.js';
+import { ingestPdf, openPdf, getPdfPages, idxProg, prog, bookmarks, peersOn, onPeer } from './pdf.js';
+import { ingestEpub, openEpub, getEpubChapters } from './epub.js';
 import { volParts, init as initEv } from './evidence.js';
 import { ic } from './icons.js';
 import { takeSnapshot } from './export.js';
@@ -203,18 +203,41 @@ export function render() {
 }
 
 /* ---------- search across volume text + cached PDF/EPUB text ---------- */
+const unreadable = new Set(); // books whose file could not be read this session (not retried on every keystroke)
 async function runSearch(box) {
-  const tok = ++qTok, q = query.toLowerCase(); box.append(h('div', { className: 'hint', textContent: 'Searching…' }));
-  const groups = []; // per book: {v, n (passages with a hit), hits[<=6]}
+  const tok = ++qTok, q = query.toLowerCase(), status = h('div', { className: 'hint', textContent: 'Searching…' }), results = h('div');
+  box.append(status, results);
+  const scan = async (v) => {
+    const g = { v, n: 0, hits: [] }; let parts = [];
+    try { parts = await volParts(v); } catch (e) { console.warn('search: could not read', v.name, e); }
+    for (const p of parts) { const i = p.t.toLowerCase().indexOf(q); if (i >= 0) { g.n++; if (g.hits.length < 6) g.hits.push({ v, p, i }); } }
+    return { g, parts };
+  };
+  const draw = (groups, final) => {
+    results.textContent = '';
+    if (!groups.length) { if (final) results.append(h('div', { className: 'hint', textContent: 'No results.' })); return; }
+    const gs = [...groups].sort((a, b) => b.n - a.n), max = gs[0].n;
+    gs.forEach((g) => { const bar = h('i'); bar.style.width = (g.n / max) * 100 + '%'; results.append(h('div', { className: 'hit-grp' }, h('b', { textContent: g.v.name || 'Untitled' }), h('span', { className: 'mono', textContent: g.n + (g.n === 1 ? ' hit' : ' hits') }), h('span', { className: 'hit-bar' }, bar)), ...g.hits.map((x) => hitEl(x))); });
+  };
+  const groups = [], pending = [];
   for (const v of S().volumes) {
-    const g = { v, n: 0, hits: [] };
-    for (const p of await volParts(v)) { const i = p.t.toLowerCase().indexOf(q); if (i >= 0) { g.n++; if (g.hits.length < 6) g.hits.push({ v, p, i }); } }
+    const { g, parts } = await scan(v); if (tok !== qTok) return;
     if (g.n) groups.push(g);
+    if ((v.pdf || v.type === 'epub') && !parts.some((p) => p.page || p.href) && !unreadable.has(v.id)) pending.push(v); // the file's text was never read on this device
   }
-  if (tok !== qTok) return;
-  box.textContent = ''; if (!groups.length) return box.append(h('div', { className: 'hint', textContent: 'No results (PDF and EPUB text is searchable once the file has been read).' }));
-  groups.sort((a, b) => b.n - a.n); const max = groups[0].n;
-  groups.forEach((g) => { const bar = h('i'); bar.style.width = (g.n / max) * 100 + '%'; box.append(h('div', { className: 'hit-grp' }, h('b', { textContent: g.v.name || 'Untitled' }), h('span', { className: 'mono', textContent: g.n + (g.n === 1 ? ' hit' : ' hits') }), h('span', { className: 'hit-bar' }, bar)), ...g.hits.map((x) => hitEl(x))); });
+  draw(groups, !pending.length); if (!pending.length) status.remove();
+  for (const [i, v] of pending.entries()) {
+    const label = `${v.name || 'a book'} (${i + 1} of ${pending.length})`, tick = () => { const p = idxProg.get(v.id); status.textContent = `Reading ${label}${p ? ': page ' + p[0] + ' of ' + p[1] : ''}…`; };
+    tick(); const t = setInterval(tick, 400);
+    try { if (v.type === 'epub') await getEpubChapters(v.id); else await getPdfPages(v.id); } catch (e) { console.warn('search: could not read', v.name, e); } finally { clearInterval(t); }
+    if (tok !== qTok) return;
+    const { g, parts } = await scan(v); if (tok !== qTok) return;
+    if (!parts.some((p) => p.page || p.href)) unreadable.add(v.id);
+    if (g.n) groups.push(g);
+    draw(groups, i === pending.length - 1);
+  }
+  const bad = pending.filter((v) => unreadable.has(v.id)).map((v) => v.name || 'a book');
+  if (bad.length) status.textContent = `Could not read: ${bad.join(', ')}. The file is not on this device or the server. Open the book once, or add the file again.`; else status.remove();
 }
 function hitEl({ v, p, i }) {
   const where = p.page ? `p.${p.page}` : p.chapter || (p.text ? 'note' : 'chapter');

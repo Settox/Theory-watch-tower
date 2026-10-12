@@ -13,30 +13,74 @@ export const tb = (label, title, fn, icon = '') => h('button', { className: 'btn
 /* ---------- shared highlights UI (volume.hl: [{id, page|cfi, chapter, phrase, color}]; remote data is untrusted) ---------- */
 export const HLC = ['#e8c872', '#7fd6ff', '#ff8fa8', '#8be3a4'];
 export const vhl = (v) => (Array.isArray(v.hl) ? v.hl : []).filter((x) => x && typeof x.id === 'string' && typeof x.phrase === 'string' && HLC.includes(x.color)).slice(0, 500);
-// returns {list(), btns} (caller puts btns in the bar); cb: {ok(x) type filter, make() -> {page|cfi, chapter?, phrase}|null, paint(), go(x), cut(x)}; returns {list()}
+// returns {list(), btns, pick(rect), menu(id, rect)} (caller puts btns in the bar); cb: {ok(x) type filter, make() -> {page|cfi, chapter?, phrase}|null, paint(), go(x), cut(x) -> star node, clear?()}
+// A highlight can have a star twin (x.sid): made once, tinted like the highlight, recoloured with it; deleting either leaves the other.
+export const hlBody = (x) => escapeHtml(x.phrase) + (x.note ? `<p><i>${escapeHtml(x.note)}</i></p>` : '');
+let pillEl, pillOff_;
+export function pillHide(keepMenu) { if (!pillEl || (keepMenu && pillEl.dataset.menu)) return; pillOff_?.(); pillEl.remove(); pillEl = pillOff_ = null; }
+function pillAt(rect, kids, menu) { // small floating toolbar next to a selection (or a clicked highlight); never steals the text selection
+  pillHide(); const el = (pillEl = h('div', { className: 'sel-pill', role: 'toolbar', onpointerdown: (e) => e.preventDefault() }, ...kids)); if (menu) el.dataset.menu = '1';
+  document.body.append(el);
+  const d = document.querySelector('.dict-pop'); let top = rect.top - el.offsetHeight - 8; if (top < 8) top = rect.bottom + 8 + (d ? d.offsetHeight + 8 : 0);
+  el.style.left = Math.max(8, Math.min(rect.left, innerWidth - el.offsetWidth - 8)) + 'px'; el.style.top = Math.max(8, Math.min(top, innerHeight - el.offsetHeight - 8)) + 'px';
+  const away = (e) => { if (!el.contains(e.target)) pillHide(); }; addEventListener('pointerdown', away, true); pillOff_ = () => removeEventListener('pointerdown', away, true);
+}
 export function hlBar(v, sh, cb) {
   const V = () => app.state.volumes.find((x) => x.id === v.id) || v, list = () => vhl(V()).filter(cb.ok);
   let col = HLC[0]; try { const c = localStorage.getItem('st-hl-col'); if (HLC.includes(c)) col = c; } catch {}
   const panel = h('div', { className: 'hl-panel', hidden: true }), mk = () => sw.forEach((b, i) => b.classList.toggle('on', HLC[i] === col));
-  const sw = HLC.map((c) => h('button', { type: 'button', className: 'hl-sw', title: 'Highlight colour', onpointerdown: (e) => e.preventDefault(), onclick: () => { col = c; try { localStorage.setItem('st-hl-col', c); } catch {} mk(); } }));
+  const pick_ = (c) => { col = c; try { localStorage.setItem('st-hl-col', c); } catch {} mk(); };
+  const sw = HLC.map((c) => h('button', { type: 'button', className: 'hl-sw', title: 'Highlight colour', onpointerdown: (e) => e.preventDefault(), onclick: () => pick_(c) }));
   sw.forEach((b, i) => { b.style.background = HLC[i]; }); mk();
   const set = (a) => { V().hl = a; save(); cb.paint(); render(); };
+  const starOf = (x) => { if (!x.sid) return null; for (const [i, p] of app.state.pages.entries()) { const n = p.nodes.find((q) => q.id === x.sid); if (n) return { n, i }; } return null; };
+  const toStar = (x) => { // open the twin star, or make it
+    const f = starOf(x); if (f) { if (f.i !== app.state.current) map.switchPage(f.i); setTimeout(() => map.focusNode(f.n.id), 60); return; }
+    const n = cb.cut(x); if (n) { x.sid = n.id; save(); render(); }
+  };
+  const recolor = (x, c = HLC[(HLC.indexOf(x.color) + 1) % HLC.length]) => {
+    x.color = c; const f = starOf(x); if (f) { f.n.color = c; if (f.i === app.state.current) map.refreshNode(f.n.id); }
+    set(vhl(V()));
+  };
+  const note = (x) => emit('prompt', { title: 'Note on this highlight', value: x.note || '', ok: (t) => { t = String(t).trim().slice(0, 400); if (t) x.note = t; else delete x.note; set(vhl(V())); } });
+  const drop = (...xs) => { const ids = new Set(xs.map((x) => x.id)); set(vhl(V()).filter((y) => !ids.has(y.id))); toast('Highlight removed (its star stays on the map)'); };
+  const add = (c) => { // a highlight IS a star: choosing a colour saves both; the same passage again just recolours it
+    const p = cb.make(); if (!p) return toast('Select some text first.');
+    const phrase = p.phrase.slice(0, 600), a = vhl(V()), dup = a.find((y) => cb.ok(y) && y.phrase === phrase && y.page === p.page);
+    if (dup) { dup.color = c; const f = starOf(dup); if (f) { f.n.color = c; if (f.i === app.state.current) map.refreshNode(f.n.id); } else { const n = cb.cut(dup); if (n) dup.sid = n.id; } set(vhl(V())); }
+    else {
+      if (a.length >= 500) return toast('Highlight limit reached (500).');
+      const x = { id: uid(), ...p, phrase, color: c }; a.push(x); const n = cb.cut(x); if (n) x.sid = n.id; set(a);
+      emit('journey-event', { type: 'highlight', volumeId: v.id, volumeName: v.name, page: p.page, phrase: p.phrase.slice(0, 200) });
+    }
+    pillHide(); cb.clear?.();
+  };
   const render = () => {
     panel.textContent = ''; const L = list(); if (!L.length) panel.append(h('p', { className: 'dim', textContent: 'No highlights yet.' }));
     L.forEach((x) => {
-      const t = h('button', { type: 'button', className: 'hl-t', textContent: x.phrase.slice(0, 160), onclick: () => { panel.hidden = true; cb.go(x); } }); t.style.borderLeftColor = x.color;
-      panel.append(h('div', { className: 'hl-row' }, t, h('button', { type: 'button', className: 'btn hl-b', title: 'Cut to star', textContent: '✦', onclick: () => cb.cut(x) }),
-        h('button', { type: 'button', className: 'btn hl-b', title: 'Remove highlight', textContent: '✕', onclick: () => set(vhl(V()).filter((y) => y.id !== x.id)) })));
+      const t = h('button', { type: 'button', className: 'hl-t', onclick: () => { panel.hidden = true; cb.go(x); } }, x.phrase.slice(0, 160)); t.style.borderLeftColor = x.color;
+      if (x.note) t.append(h('small', { className: 'hl-note', textContent: x.note }));
+      const b = (txt, title, fn) => h('button', { type: 'button', className: 'btn hl-b', title, textContent: txt, onclick: fn });
+      panel.append(h('div', { className: 'hl-row' }, t, ...(app.readonly ? [] : [b(starOf(x) ? '✦' : '✧', starOf(x) ? 'Go to its star' : 'Make a star from this', () => toStar(x)), b('◐', 'Change colour', () => recolor(x)), b('✎', 'Add a note', () => note(x)), b('✕', 'Remove highlight', () => drop(x))])));
     });
   };
-  const btns = [...sw, tb('Highlight', 'Highlight selected text', () => {
-    const p = cb.make(); if (!p) return toast('Select some text first.');
-    const a = vhl(V()); if (a.length >= 500) return toast('Highlight limit reached (500).');
-    a.push({ id: uid(), ...p, phrase: p.phrase.slice(0, 600), color: col }); set(a); toast('Highlighted');
-    emit('journey-event', { type: 'highlight', volumeId: v.id, volumeName: v.name, page: p.page, phrase: p.phrase.slice(0, 200) });
-  }, '🖍'), tb('Highlights', 'All highlights of this book', () => { render(); panel.hidden = !panel.hidden; if (!panel.hidden) sh.bar.parentNode.querySelectorAll('.hl-panel').forEach((x) => x !== panel && (x.hidden = true)); }, '≣')];
+  const swatches = (fn, on_) => HLC.map((c) => { const s = h('button', { type: 'button', className: 'hl-sw' + (c === on_ ? ' on' : ''), title: 'Highlight in this colour', onclick: () => fn(c) }); s.style.background = c; return s; });
+  const btns = [...sw, tb('Highlight', 'Highlight selected text and save it as a star', () => add(col), '🖍'),
+    tb('Highlights', 'All highlights of this book', () => { render(); panel.hidden = !panel.hidden; if (!panel.hidden) sh.bar.parentNode.querySelectorAll('.hl-panel').forEach((x) => x !== panel && (x.hidden = true)); }, '≣')];
   sh.bar.parentNode.append(panel);
-  return { list, btns };
+  return {
+    list, btns,
+    pick(rect) { // the colours highlight + star in one tap; selecting an already highlighted passage also offers to remove it
+      if (app.readonly) return; const p = cb.make(), hit = p ? vhl(V()).filter((y) => cb.ok(y) && y.page === p.page && (y.phrase.includes(p.phrase) || p.phrase.includes(y.phrase))) : [];
+      pillAt(rect, [...swatches((c) => { pick_(c); add(c); }, col), ...(hit.length ? [h('button', { type: 'button', className: 'btn', title: 'Remove this highlight', textContent: '✕ Remove', onclick: () => { pillHide(); drop(...hit); cb.clear?.(); } })] : [])]);
+    },
+    menu(id, rect) { // a click on an existing highlight
+      const x = vhl(V()).find((y) => y.id === id); if (!x) return;
+      pillAt(rect, app.readonly ? [h('button', { type: 'button', className: 'btn', textContent: starOf(x) ? '✦ Go to star' : 'No star', onclick: () => { pillHide(); toStar(x); } })]
+        : [...swatches((c) => { recolor(x, c); pillHide(); }, x.color), h('button', { type: 'button', className: 'btn sp-star', textContent: starOf(x) ? '✦ Go to star' : '✦ Star', onclick: () => { pillHide(); toStar(x); } }),
+          h('button', { type: 'button', className: 'btn', title: 'Add a note', textContent: '✎', onclick: () => { pillHide(); note(x); } }), h('button', { type: 'button', className: 'btn', title: 'Remove highlight', textContent: '✕', onclick: () => { pillHide(); drop(x); } })], true);
+    },
+  };
 }
 
 /* ---------- shared reader extras: progress, bookmarks, focus mode, reading together, dictionary, evidence ---------- */
@@ -123,9 +167,9 @@ export function rdx(v, sh, a) {
     tb('Focus', 'Focus mode (Esc exits)', focusOn, '◐'), evd.btn];
   renderPeers();
   return {
-    btns, report, hide: dictHide, focusOff, focusOn,
-    look: (text, rect, src) => dictShow(text, rect, { src: (w) => ({ ...src, phrase: w }), star }),
-    dispose: () => { on_ = false; if (timer) { clearTimeout(timer); flush(); } peerSubs.delete(peerCb); chg.delete(chgCb); clearInterval(pi); focusOff(); dictHide(); evd.dispose(); emit('library-render'); },
+    btns, report, hide: (keepMenu) => { dictHide(); pillHide(keepMenu); }, focusOff, focusOn,
+    look: (text, rect, src) => { dictShow(text, rect, { src: (w) => ({ ...src, phrase: w }), star }); a.pick?.(rect); },
+    dispose: () => { on_ = false; if (timer) { clearTimeout(timer); flush(); } peerSubs.delete(peerCb); chg.delete(chgCb); clearInterval(pi); focusOff(); dictHide(); pillHide(); evd.dispose(); emit('library-render'); },
   };
 }
 
@@ -175,17 +219,25 @@ async function lib() {
 }
 const loadDoc = async (id) => { const ab = await bytes('pdfs', 'pdf', id); return ab && (await lib()).getDocument({ data: ab.slice(0) }).promise; }; // slice: pdf.js detaches the buffer
 
+export const idxProg = new Map(); // book id -> [page, pages] while its text is being read
 async function extract(doc, id) {
   const out = [];
   for (let i = 1; i <= doc.numPages; i++) {
+    idxProg.set(id, [i, doc.numPages]);
     const tc = await (await doc.getPage(i)).getTextContent();
     out.push(tc.items.map((t) => t.str + (t.hasEOL ? '\n' : '')).join('').replace(/(\w)-\n(\w)/g, '$1$2').replace(/[ \t]+/g, ' ').trim());
   }
-  await idb.put('pdfs', id + ':text', out); return out;
+  await idb.put('pdfs', id + ':text', out); idxProg.delete(id); return out;
 }
-export async function getPdfPages(id) {
-  const c = await idb.get('pdfs', id + ':text'); if (c) return c;
-  const d = await loadDoc(id); return d ? extract(d, id) : [];
+const reading = new Map(); // repeated searches share one read instead of starting another
+export function getPdfPages(id) {
+  if (reading.has(id)) return reading.get(id);
+  const p = (async () => {
+    const c = await idb.get('pdfs', id + ':text'); if (c) return c;
+    const d = await loadDoc(id); if (!d) return [];
+    try { return await extract(d, id); } finally { d.destroy?.(); }
+  })().finally(() => { reading.delete(id); idxProg.delete(id); });
+  reading.set(id, p); return p;
 }
 export const getPdfText = async (id) => (await getPdfPages(id)).join('\n\n');
 
@@ -377,17 +429,19 @@ export async function openPdf(v, o = {}) {
     ok: (x) => Number.isInteger(x.page), paint,
     make: () => { const p = picked(); return p && { page: p.page, phrase: p.text }; },
     go: (x) => { s.focus = x.id; jump(x.page); paint(); },
-    cut: (x) => { star({ title: `${v.name} — p.${x.page}`, body: escapeHtml(x.phrase), source: src('pdf', x.page, { phrase: x.phrase }) }); toast('Added to the map'); },
+    cut: (x) => { toast('Saved as a star'); return star({ title: `${v.name} — p.${x.page}`, body: hlBody(x), color: x.color, source: src('pdf', x.page, { phrase: x.phrase }) }); },
+    clear: () => getSelection().removeAllRanges(),
   });
+  box.addEventListener('click', (e) => { const m = e.target.closest?.('mark.uh'); if (m && !getSelection().toString() && m.dataset.id && !m.dataset.id.startsWith('ev:')) ui.menu(m.dataset.id, m.getBoundingClientRect()); });
   const zoom = (z) => { const c = cur(); s.zoom = clamp(z, 0.5, 3); build(c); };
 
   fx = rdx(v, sh, {
     pos: () => { const n = cur(); return { page: n, label: 'p. ' + n, pct: Math.round((n / doc.numPages) * 100) }; },
     go: (p) => { if (Number.isInteger(p.page) && p.page !== cur()) jump(p.page); },
-    paint, sig: () => ui.list().map((x) => x.id + x.color).join(), resize: () => build(cur()),
+    paint, pick: ui.pick, sig: () => ui.list().map((x) => x.id + x.color).join(), resize: () => build(cur()),
     goEv: (x) => { s.focus = 'ev:' + x.i; jump(x.page); paint(); },
   });
-  let dt; const look = () => { clearTimeout(dt); dt = setTimeout(() => { const p = picked(); if (!p) return fx.hide(); fx.look(p.text, getSelection().getRangeAt(0).getBoundingClientRect(), src('pdf', p.page)); }, 260); };
+  let dt; const look = () => { clearTimeout(dt); dt = setTimeout(() => { const p = picked(); if (!p) return fx.hide(true); fx.look(p.text, getSelection().getRangeAt(0).getBoundingClientRect(), src('pdf', p.page)); }, 260); };
   ['pointerup', 'keyup', 'touchend'].forEach((n) => sh.body.addEventListener(n, look));
   go.onchange = () => jump(+go.value);
   let raf = 0; sh.body.addEventListener('scroll', () => { raf ||= requestAnimationFrame(() => { raf = 0; info(); fx.report(); }); fx.hide(); });

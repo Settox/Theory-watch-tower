@@ -11,7 +11,7 @@ let cur = null, openModal; // cur: dock of the open reader {v, a, render}
 export async function volParts(v) {
   const parts = [], arr = (x) => (Array.isArray(x) ? x : []);
   if (v.text) parts.push({ t: String(v.text), text: true });
-  if (v.type === 'pdf') arr(await idb.get('pdfs', v.id + ':text').catch(() => null)).forEach((t, i) => parts.push({ t: String(t), page: i + 1 }));
+  if (v.type === 'pdf' || (v.pdf && v.type !== 'epub')) arr(await idb.get('pdfs', v.id + ':text').catch(() => null)).forEach((t, i) => parts.push({ t: String(t), page: i + 1 }));
   if (v.type === 'epub') arr(await idb.get('epubs', v.id + ':text').catch(() => null)).forEach((c) => parts.push({ t: String(c?.text || ''), chapter: c?.title, href: c?.href }));
   return parts;
 }
@@ -136,6 +136,4 @@ async function findIdea(nodeId) {
 export function init(helpers) {
   openModal = helpers.openModal;
   on('evidence', (d) => openEvidence(d?.nodeId));
-  emit('register-tool', { label: 'Show evidence for selected star', fn: () => openEvidence([...map.sel][0]) });
-  emit('register-tool', { label: 'Find this idea in other books', fn: () => findIdea() });
 }

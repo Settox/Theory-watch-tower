@@ -1,6 +1,6 @@
 // EPUB support (epub.js 0.3.93 + JSZip from cdnjs): reader with TOC, search, themes, cut to star, per-chapter text cache.
 import { idb, toast, uploadBlob, loadScript, copyText, clamp, escapeHtml } from './core.js';
-import { h, tb, shell, bytes, hlBar, rdx, star, prog, compact } from './pdf.js';
+import { h, tb, shell, bytes, hlBar, hlBody, rdx, star, prog, compact } from './pdf.js';
 import { ev, EVC } from './evidence.js';
 
 const CDN = 'https://cdnjs.cloudflare.com/ajax/libs/';
@@ -23,11 +23,16 @@ async function extract(book, id) {
   }
   await idb.put('epubs', id + ':text', out); return out;
 }
-export async function getEpubChapters(id) {
-  const c = await idb.get('epubs', id + ':text'); if (c) return c;
-  const ab = await bytes('epubs', 'epub', id); if (!ab) return [];
-  const book = (await lib())(ab.slice(0));
-  try { return await extract(book, id); } finally { book.destroy(); }
+const reading = new Map();
+export function getEpubChapters(id) {
+  if (reading.has(id)) return reading.get(id);
+  const p = (async () => {
+    const c = await idb.get('epubs', id + ':text'); if (c) return c;
+    const ab = await bytes('epubs', 'epub', id); if (!ab) return [];
+    const book = (await lib())(ab.slice(0));
+    try { return await extract(book, id); } finally { book.destroy(); }
+  })().finally(() => reading.delete(id));
+  reading.set(id, p); return p;
 }
 export const getEpubText = async (id) => (await getEpubChapters(id)).map((c) => c.text).join('\n\n');
 
@@ -124,6 +129,15 @@ export async function openEpub(v, o = {}) {
   rend.on('keyup', (e) => { if (e.key === 'ArrowRight') rend.next(); else if (e.key === 'ArrowLeft') rend.prev(); else if (e.key === 'Escape') fx?.focusOff(); });
   rend.hooks.content.register((c) => { // swipe to turn pages
     let x0 = 0; c.document.addEventListener('pointerdown', () => fx?.hide());
+    c.document.addEventListener('click', (e) => { // click a highlight: recolour / note / remove (the overlay itself ignores the pointer so text stays selectable)
+      if (c.window.getSelection().toString()) return;
+      for (const x of ui.list()) {
+        let r; try { r = c.range(x.cfi); } catch { continue; }
+        for (const q of r ? r.getClientRects() : []) if (e.clientX >= q.left && e.clientX <= q.right && e.clientY >= q.top && e.clientY <= q.bottom) {
+          const f = c.window.frameElement?.getBoundingClientRect() || { left: 0, top: 0 }; ui.menu(x.id, { left: q.left + f.left, top: q.top + f.top, bottom: q.bottom + f.top }); return;
+        }
+      }
+    });
     c.document.addEventListener('touchstart', (e) => { x0 = e.changedTouches[0].clientX; }, { passive: true });
     c.document.addEventListener('touchend', (e) => { const dx = e.changedTouches[0].clientX - x0; if (Math.abs(dx) > 60 && !c.window.getSelection().toString()) dx < 0 ? rend.next() : rend.prev(); }, { passive: true });
   });
@@ -131,7 +145,8 @@ export async function openEpub(v, o = {}) {
     ok: (x) => typeof x.cfi === 'string' && x.cfi.length < 600, paint,
     make: () => selected && { cfi: selected.cfi, chapter: label(), phrase: selected.phrase },
     go: (x) => rend.display(x.cfi).catch(() => {}),
-    cut: (x) => { star({ title: x.chapter ? `${v.name} — ${x.chapter}` : v.name, body: escapeHtml(x.phrase), source: { type: 'epub', volumeId: v.id, volumeName: v.name, chapter: String(x.chapter || ''), cfi: x.cfi, phrase: x.phrase } }); toast('Added to the map'); },
+    cut: (x) => { toast('Saved as a star'); return star({ title: x.chapter ? `${v.name} — ${x.chapter}` : v.name, body: hlBody(x), color: x.color, source: { type: 'epub', volumeId: v.id, volumeName: v.name, chapter: String(x.chapter || ''), cfi: x.cfi, phrase: x.phrase } }); },
+    clear: () => { selected = null; rend.getContents().forEach((c) => c.window.getSelection().removeAllRanges()); },
   });
   const evHref = (x) => x.cfi || x._cfi || x.href || (x.chapter && toc.find((t) => t.label.trim() === x.chapter)?.href) || undefined;
   fx = rdx(v, sh, {
@@ -140,7 +155,7 @@ export async function openEpub(v, o = {}) {
       return { cfi: loc.start.cfi, label: label() || 'Ch. ' + (loc.start.index + 1), pct: Math.round(((loc.start.index + (d.total ? (d.page - 1) / d.total : 0)) / n) * 100) };
     },
     go: (p) => { if (typeof p.cfi === 'string' && p.cfi !== loc?.start.cfi) rend.display(p.cfi).catch(() => {}); },
-    paint, sig: () => ui.list().map((x) => x.cfi + x.color).join(), resize: () => { try { rend.resize(); } catch {} },
+    paint, pick: ui.pick, sig: () => ui.list().map((x) => x.cfi + x.color).join(), resize: () => { try { rend.resize(); } catch {} },
     goEv: async (x) => { await show(evHref(x), x.phrase); paintEv(); },
   });
   compact(sh, tb('Cut', 'Selected text to a new star', cut, '✦'), fx, [

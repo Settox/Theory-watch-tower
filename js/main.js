@@ -8,8 +8,7 @@ import * as ops from './canvasops.js';
 sky($('sky'));
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
 const root = document.documentElement;
-const setTheme = (t) => { root.dataset.theme = t; try { localStorage.setItem('st-theme', t); } catch {} map.drawMinimap(); };
-try { const t = localStorage.getItem('st-theme'); if (t) root.dataset.theme = t; } catch {}
+root.dataset.theme = 'night'; try { localStorage.removeItem('st-theme'); } catch {} // one theme; the sky presets in Settings change the look
 
 /* ---------- menu ---------- */
 const menu = $('menu');
@@ -17,7 +16,7 @@ export function showMenu(items, x, y) {
   menu.textContent = '';
   items.forEach((it) => {
     const d = document.createElement('div'); d.setAttribute('role', 'menuitem');
-    if (it.sep) d.className = 'sep'; else { d.textContent = it.l; if (it.danger) d.className = 'danger'; d.onclick = () => { closeMenu(); it.fn(); }; }
+    if (it.head) { d.className = 'mhead'; d.setAttribute('role', 'presentation'); d.textContent = it.head; } else if (it.sep) d.className = 'sep'; else { d.textContent = it.l; if (it.danger) d.className = 'danger'; d.onclick = () => { closeMenu(); it.fn(); }; }
     menu.appendChild(d);
   });
   menu.hidden = false;
@@ -89,13 +88,23 @@ const commands = () => [
   act('Export JSON', '', io.exportJSON), act('Export PNG of this constellation', '', io.exportPNG), act('Print / save as PDF', '', io.exportPDF),
   act('Import JSON…', '', () => pickFile('.json,application/json', (f) => io.importJSON(f).catch((e) => toast(e.message)))),
   act('Save a version now', '', () => io.takeSnapshot('Manual')), act('Version history…', '', versionHistory),
-  act('Room / collaboration…', '', roomModal),
+  act('Room settings…', '', () => settingsModal('room')),
   act('Settings…', '', settingsModal),
-  act('Toggle day / night theme', '', () => setTheme(root.dataset.theme === 'day' ? 'night' : 'day')),
   ...tools.map((t) => act(t.label, t.key || '', t.fn)),
   act('Home', '', () => { location.href = './'; }),
 ];
-const toolsMenu = (x, y) => showMenu(tools.length ? tools.map((t) => ({ l: t.label, fn: t.fn })) : [{ l: 'No tools loaded yet', fn() {} }], x, y);
+const GROUPS = [['Think and study', /study|argument|universe/i], ['Import and export', /import|export|clipper/i]];
+const shortLabel = (t) => t.label.replace(/\s*\([^)]*\)/g, '');
+const toolsMenu = (x, y) => {
+  const list = tools.filter((t) => !t.room), items = [], used = new Set();
+  if (!list.length) return showMenu([{ l: 'No tools loaded yet', fn() {} }], x, y);
+  GROUPS.forEach(([name, re]) => {
+    const g = list.filter((t) => re.test(t.label) && !used.has(t)); if (!g.length) return;
+    items.push({ head: name }); g.forEach((t) => { used.add(t); items.push({ l: shortLabel(t), fn: t.fn }); });
+  });
+  const rest = list.filter((t) => !used.has(t)); if (rest.length) { items.push({ head: 'More' }); rest.forEach((t) => items.push({ l: shortLabel(t), fn: t.fn })); }
+  showMenu(items, x, y);
+};
 const pal = $('palette'), palIn = $('palInput'), palList = $('palList'); let palItems = [], palHl = 0;
 function palRender() {
   const q = palIn.value.trim().toLowerCase();
@@ -133,28 +142,46 @@ on('register-settings', (fn) => settingsSections.push(fn));
 settingsSections.push((box, ui) => box.append(ui.h('p', { className: 'mono', textContent: 'Navigation' }), ui.slider('Pan smoothness (middle-drag)', 'panSmooth', 50), ui.h('p', { className: 'hint', textContent: '0% follows every mouse movement exactly. Higher values glide and ignore tiny jitters.' })));
 const tools = []; // modules add actions to the Tools menu + command palette: emit('register-tool', {label, key?, fn})
 on('register-tool', (t) => tools.push(t));
-function settingsModal() {
-  openModal((card, close) => card.append(h('h2', { textContent: 'Settings', className: 'serif' }),
-    field('Your name in rooms', 'name', 'text', 'Anonymous'),
-    ...(() => { const box = h('div', { style: 'display:grid;gap:10px' }); settingsSections.forEach((fn) => { try { fn(box, { h, btn, field, slider, toggle, select }); } catch (e) { console.error(e); } }); return [box]; })(),
-    h('p', { className: 'mono', textContent: 'Sky' }), slider('Stars in the background', 'skyStars', 30), slider('Constellation lines between stars', 'skyLines', 55), slider('Your cursor colour (hue)', 'hue', 40, 360, '°'),
-    h('label', { style: 'display:flex;align-items:center;justify-content:space-between;gap:12px' }, h('span', { textContent: 'Play the shared sound effect from other people in a room' }), Object.assign(h('input', { type: 'checkbox', checked: !!settings.allowSfx }), { onchange(e) { settings.allowSfx = e.target.checked; saveSettings(); } })),
-    h('p', { className: 'mono', textContent: 'Voice, translation and AI keys' }),
-    field('ElevenLabs key', 'elKey', 'password'), field('OpenAI-compatible key', 'oaKey', 'password'), field('Google Cloud TTS key', 'gcKey', 'password'), field('Gemini key', 'gemKey', 'password'), field('AI translation key', 'aiKey', 'password'),
-    h('p', { className: 'hint', textContent: 'Keys stay on this device only (localStorage) and are never synced to rooms.' }),
-    h('div', { style: 'display:flex;justify-content:flex-end' }, btn('Done', close, 'primary'))));
-}
-function roomModal() {
-  openModal((card, close) => {
-    const i = h('input', { value: app.room || '', placeholder: 'room-name' });
-    const tool = (re, label) => { const t = tools.find((x) => re.test(x.label)); return t ? btn(label, () => { close(); t.fn(); }) : ''; };
-    card.append(h('h2', { textContent: 'Room', className: 'serif' }), h('p', { className: 'hint', textContent: app.room ? `You are in “${app.room}”. Anyone with the name can edit.` : 'Rooms sync to the server and live between people. Anyone who knows the name can edit, so choose a hard-to-guess one.' }), i,
-      h('div', { style: 'display:flex;gap:8px;flex-wrap:wrap' }, app.room ? tool(/Share links/i, 'Share links') : '', app.room ? tool(/members/i, 'Members & roles') : '', app.room ? tool(/Activity/i, 'Activity') : '', tool(/Publish/i, 'Publish canvas')),
-      h('div', { style: 'display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap' },
+function roomPane(close) {
+  const i = h('input', { value: app.room || '', placeholder: 'room-name', autocomplete: 'off' });
+  const T = (re, label, hint) => { const t = tools.find((x) => re.test(x.label)); return t ? h('div', { className: 'set-act' }, btn(label, () => { close(); t.fn(); }), h('span', { className: 'hint', textContent: hint })) : ''; };
+  const sec = (title, ...kids) => h('section', { className: 'set-sec' }, h('h3', { className: 'serif', textContent: title }), ...kids);
+  const pane = h('div', { className: 'set-pane' },
+    sec(app.room ? `In “${app.room}”` : 'Join a room',
+      h('p', { className: 'hint', textContent: app.room ? 'You are in this room right now.' : 'Rooms sync to the server and live between people. Creating a room needs an account; a room is open to anyone with its name until you add a whitelist or a password.' }),
+      h('label', { textContent: 'Room name' }, i),
+      h('div', { className: 'set-row' }, btn(app.room ? 'Go to this room' : 'Join', () => { if (i.value.trim()) location.href = 'app.html?room=' + encodeURIComponent(cleanRoom(i.value)); }, 'primary'),
         app.room ? btn('Copy link', () => copyText(`${location.origin}${location.pathname}?room=${encodeURIComponent(app.room)}`).then(() => toast('Link copied'))) : '',
-        app.room ? btn('Leave', () => { location.href = 'app.html'; }) : '', btn('Join', () => { if (i.value.trim()) location.href = 'app.html?room=' + encodeURIComponent(cleanRoom(i.value)); }, 'primary')));
+        app.room ? btn('Leave room', () => { location.href = 'app.html'; }) : '')));
+  if (app.room) {
+    const access = h('div', {});
+    pane.append(sec('Who can enter', access), sec('Shared work',
+      T(/members/i, 'Members and roles', 'Soft roles while you are working together.'),
+      T(/Activity/i, 'Activity feed', 'What changed, and who changed it.'),
+      T(/Vote/i, 'Vote on stars', 'Ranking of the stars by reaction.'),
+      T(/Publish/i, 'Publish this canvas', 'A public, read-only link to this constellation.')));
+    emit('room-access', { box: access, room: app.room });
+  } else pane.append(sec('Share your work', T(/Publish/i, 'Publish this canvas', 'A public, read-only link to this constellation.')));
+  return pane;
+}
+function settingsModal(tab = 'room') {
+  openModal((card, close) => {
+    const panes = {}, bar = h('div', { className: 'set-tabs', role: 'tablist' });
+    const show = (id) => { Object.entries(panes).forEach(([k, p]) => { p.hidden = k !== id; }); [...bar.children].forEach((b) => b.setAttribute('aria-selected', String(b.dataset.tab === id))); };
+    const general = h('div', { className: 'set-pane' }, field('Your name in rooms', 'name', 'text', 'Anonymous'));
+    settingsSections.forEach((fn) => { try { fn(general, { h, btn, field, slider, toggle, select }); } catch (e) { console.error(e); } });
+    general.append(h('p', { className: 'mono', textContent: 'Sky' }), slider('Stars in the background', 'skyStars', 30), slider('Constellation lines between stars', 'skyLines', 55), slider('Your cursor colour (hue)', 'hue', 40, 360, '°'),
+      h('label', { className: 'set-check' }, h('span', { textContent: 'Play the shared sound effect from other people in a room' }), Object.assign(h('input', { type: 'checkbox', checked: !!settings.allowSfx }), { onchange(e) { settings.allowSfx = e.target.checked; saveSettings(); } })));
+    const keys = h('div', { className: 'set-pane' }, field('ElevenLabs key', 'elKey', 'password'), field('OpenAI-compatible key', 'oaKey', 'password'), field('Google Cloud TTS key', 'gcKey', 'password'), field('Gemini key', 'gemKey', 'password'), field('AI translation key', 'aiKey', 'password'),
+      h('p', { className: 'hint', textContent: 'Keys stay on this device only (localStorage) and are never synced to rooms.' }));
+    Object.assign(panes, { general, room: roomPane(close), keys });
+    [['room', 'Room'], ['general', 'General'], ['keys', 'Voice and AI']].forEach(([id, label]) => { const b = h('button', { type: 'button', className: 'set-tab', textContent: label, onclick: () => show(id) }); b.setAttribute('role', 'tab'); b.dataset.tab = id; bar.append(b); });
+    card.append(h('h2', { textContent: 'Settings', className: 'serif' }), bar, panes.room, general, keys, h('div', { style: 'display:flex;justify-content:flex-end' }, btn('Done', close, 'primary')));
+    show(panes[tab] ? tab : 'room');
   });
 }
+const roomModal = () => settingsModal('room');
+on('open-settings', (tab) => settingsModal(tab || 'room'));
 async function versionHistory() {
   const list = await io.listSnapshots();
   openModal((card, close) => card.append(h('h2', { textContent: 'Version history', className: 'serif' }),
@@ -216,7 +243,6 @@ $('btnMedia').onclick = () => { const i = $('fileAny'); i.accept = 'image/*,vide
 on('add-media', (id) => pickFile('image/*,video/*', (f) => map.insertImage(id, f)));
 addEventListener('paste', (e) => { if (typing()) return; const fs = [...(e.clipboardData?.files || [])]; if (fs.some((f) => f.type.startsWith('image/'))) { e.preventDefault(); mediaStars(fs); } });
 $('btnPen').onclick = () => map.setPen(!map.pen.on);
-$('btnCollab').onclick = roomModal;
 $('btnLib').onclick = () => toggleLib();
 $('libClose').onclick = () => toggleLib(false);
 $('libTab').onclick = () => toggleLib(true);
@@ -312,6 +338,15 @@ const keepLocalCopy = () => { try { localStorage.setItem('spazio-teorie-room-v3:
 function adopt(s) { const cur = app.state.current; app.state = s; app.state.current = Math.min(cur || 0, s.pages.length - 1); app.serverStars = starsOf(s); emit('state-replaced'); keepLocalCopy(); }
 
 async function enterRoom() {
+  const A = await import('./auth.js').catch(() => null);
+  if (A && app.serverReady) { // the database decides: whitelist first, then password, else the room is open (js/auth.js, supabase/migrations)
+    const acc = await A.roomAccess(app.room); // owner | editor | viewer | none | legacy | whitelist | password | signin | null (could not tell)
+    if (acc === 'signin') { status('Sign in to open “' + app.room + '”'); A.openAuth('in', 'This room is not open to everyone. Sign in to continue.'); return; }
+    if (acc === 'password') { A.showJoin(app.room); return; }
+    if (acc === 'whitelist' || acc === 'legacy') { A.showDenied(app.room, acc); return; }
+    if (acc === 'none' && !app.user) { status('Sign in to create “' + app.room + '”'); A.openAuth('in', 'Creating a room needs an account.'); return; }
+    if (acc === 'viewer') { app.dbRole = 'viewer'; app.readonly = true; document.body.classList.add('readonly'); }
+  }
   const pending = loadRoomFromServer(app.room), server = await Promise.race([pending, new Promise((r) => setTimeout(() => r(TIMEOUT), 10000))]);
   if (server === TIMEOUT || app.loadError) { // we could NOT read the room: stay read-safe, never upload over it
     status('Offline copy · not saving to the server');
@@ -337,7 +372,7 @@ function newRoomChoice() {
     openModal((card) => card.append(
       h('h2', { className: 'serif', textContent: `New room “${app.room}”` }),
       h('p', { textContent: 'This room does not exist yet. What should it start with?' }),
-      h('p', { className: 'hint', textContent: 'Anyone who knows the room name can read and edit what you put in it. Your personal canvases stay on this device either way: this only makes a copy.' }),
+      h('p', { className: 'hint', textContent: 'Until you add a whitelist or a password (Room, then Share links), anyone with the room name can open and edit it. Your personal canvases stay on this device either way: this only makes a copy.' }),
       h('div', { style: 'display:grid;gap:8px' }, btn('Start with an empty canvas', () => finish('empty')), btn('Bring a copy of my canvases and library', () => finish('bring'), 'primary'))));
   }).then(async (how) => {
     if (how !== 'bring') return;
@@ -357,7 +392,7 @@ async function boot() {
   if (q) { try { const r = JSON.parse(localStorage.getItem('st-rooms') || '{}'); r[app.room] = { t: Date.now() }; localStorage.setItem('st-rooms', JSON.stringify(r)); } catch {} }
   const P = new URLSearchParams(location.search), pid = P.get('page');
   if (pid) { const i = app.state.pages.findIndex((x) => x.id === pid); if (i >= 0) app.state.current = i; }
-  if (P.get('new')) { app.state.pages.push({ id: uid(), name: 'Constellation ' + (app.state.pages.length + 1), nodes: [], connections: [], drawings: [] }); app.state.current = app.state.pages.length - 1; save(); history.replaceState(null, '', location.pathname + (q ? '?room=' + encodeURIComponent(q) : '')); }
+  if (P.get('new')) { app.state.pages.push({ id: uid(), name: 'Constellation ' + (app.state.pages.length + 1), nodes: [], connections: [], drawings: [] }); app.state.current = app.state.pages.length - 1; save(); history.replaceState(null, '', location.pathname + (q ? '?room=' + encodeURIComponent(q) : '') + location.hash); }
   const view = P.get('view'); // published read-only canvas: ?view=<id>
   if (view) {
     app.readonly = true; document.body.classList.add('readonly'); status('Read-only · published canvas');
@@ -369,10 +404,13 @@ async function boot() {
   // modules load right away; the server never blocks the UI
   const helpers = { showMenu, openModal, h, btn, pickFile, toggleLib, field, slider, toggle, select };
   const load = async (m) => { try { (await import(`./${m}.js`)).init?.(helpers); } catch (e) { if (/Failed to fetch dynamically|error loading dynamically|Failed to load module/i.test(String(e.message))) console.info('module not present:', m); else { console.error(m, e); toast(`${m} failed to load: ${e.message || e}`); } } };
-  for (const m of ['themes', 'audio', 'library', 'webimport', 'voice', 'study', 'journey', 'argument', 'universe', 'tutorial']) await load(m);
-  if (view) { await load('social'); return; } // read-only viewers never join the live room
+  await load('auth'); // account chip + session first: rooms and invites need to know who you are
+  try { await withTimeout((await import('./auth.js')).ready, 4000); } catch {}
+  for (const m of ['themes', 'audio', 'library', 'webimport', 'voice', 'study', 'journey', 'argument', 'universe', 'tutorial', 'bridge', 'clipper']) await load(m);
+  if (view) { await load('social'); emit('booted'); return; } // read-only viewers never join the live room
   if (q) await enterRoom();
   await load('collab'); // after the server state, so peers diff against the right baseline
   await load('social'); // roles, presence, reactions, activity, share links: needs collab's channel
+  emit('booted');
 }
 boot();

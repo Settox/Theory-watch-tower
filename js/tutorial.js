@@ -58,8 +58,6 @@ export async function init(ui) {
   ensure();
   if (mine() && (wanted || !seen)) show();
   const guard = (fn) => () => (mine() ? fn() : toast('The tutorial lives in your personal canvases, not in rooms'));
-  emit('register-tool', { label: 'Restore tutorial', fn: guard(() => { ensure(); show(); toast('Tutorial restored'); }) });
-  emit('register-tool', { label: 'Reset tutorial', fn: guard(() => emit('confirm', { title: 'Reset the tutorial to its original text?', ok: () => { const i = idx(), p = tutorialPage(); if (i >= 0) app.state.pages[i] = p; else app.state.pages.unshift(p); show(); save(); emit('state-replaced'); } })) });
   on('state-replaced', () => ensure()); // e.g. after importing a project that lacks it
 
   /* ---------- guided tour ---------- */
@@ -100,7 +98,7 @@ export async function init(ui) {
     t('Study mode', 'Turns your stars into flashcards with spaced repetition.', { tg: '#btnTools', show: toolBtn(/study/i) }),
     t('Journeys', 'Record the books you open and stars you make, then replay and share the path as a guided tour.', { tg: '#btnTools', show: toolBtn(/journey/i) }),
     t('Universe view', 'See all your canvases as one universe and hop between constellations.', { tg: '#btnTools', show: toolBtn(/universe/i) }),
-    t('Rooms', 'Work together live: roles, reactions, an activity feed, guest links and read-only public canvases. Rooms sync through a server, so choose hard-to-guess names.', { tg: '#btnCollab' }),
+    t('Rooms', 'Work together live: roles, reactions, an activity feed, guest links and read-only public canvases. Rooms sync through a server, so choose hard-to-guess names.', { tg: '#btnSettings' }),
     t('Search and minimap', 'Press / to search stars. The minimap jumps anywhere; F fits everything.', { tg: () => (vis($('minimap')) ? $('minimap') : $('search')) }),
     t('Install as an app', 'Use your browser\'s install option (menu, or the icon in the address bar) to run this offline like a normal app.'),
     t('One more thing', 'There is a hidden easter egg. Try the classic arrow sequence.'),
@@ -190,8 +188,6 @@ export async function init(ui) {
   addEventListener('resize', () => active() && place());
 
   // tools, floating pill (only on the Tutorial canvas) and the one-time offer
-  emit('register-tool', { label: 'Start guided tour', fn: () => start() });
-  emit('register-tool', { label: 'Restart tour', fn: () => start(true) });
   const pill = el('button', 'btn primary tour-pill', { textContent: '✦ Start tour', type: 'button', onclick: () => start() }); pill.hidden = true;
   const offer = el('div', 'tour-offer'); offer.hidden = true;
   offer.append(el('b', 'serif', { textContent: 'New here?' }), el('span', '', { textContent: 'Take the 2-minute tour.' }),

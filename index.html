@@ -13,15 +13,20 @@
 <link rel="stylesheet" href="css/theme.css">
 <link rel="stylesheet" href="css/home.css">
 </head>
-<body>
+<body data-door="on">
+<script>try{if(localStorage.getItem('st-owner')==='1'&&!/[?&]door=1/.test(location.search))document.body.dataset.door='off'}catch(e){}</script>
 <canvas id="sky" aria-hidden="true"></canvas>
+<canvas id="hall" aria-hidden="true"></canvas>
 
 <header class="nav wrap">
   <a class="brand" href="./" aria-label="The Forbidden Library, home">
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M4 18 9 9l6 5 5-10"/><circle cx="4" cy="18" r="1.6" fill="currentColor"/><circle cx="9" cy="9" r="1.6" fill="currentColor"/><circle cx="15" cy="14" r="1.6" fill="currentColor"/><circle cx="20" cy="4" r="1.6" fill="currentColor"/></svg>
     <span>The Forbidden Library</span>
   </a>
-  <button class="btn" id="themeBtn" aria-label="Switch between night and day">Night / day</button>
+  <div class="nav-tools">
+    <button class="btn" id="butBtn" aria-pressed="false" title="Swap the stars in the sky for green butterflies"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 12C10 6 5 4 3.5 6.5S5 13 12 12z"/><path d="M12 12c2-6 7-8 8.5-5.500S19 13 12 12z"/><path d="M12 12c-4 .5-6 4-4.500 6S12 17.500 12 12z"/><path d="M12 12c4 .5 6 4 4.500 6S12 17.500 12 12z"/><path d="M12 8v10"/></svg>Butterflies</button>
+    <button class="btn" id="accBtn" type="button" title="Sign in or create an account">Sign in</button>
+  </div>
 </header>
 
 <main>
@@ -64,6 +69,8 @@
 
 <footer class="wrap">The Forbidden Library. Your canvases stay in this browser unless you join a room.</footer>
 
+<div id="modal" hidden></div>
+<div id="toast" role="status" aria-live="polite"></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <script src="supabase-config.js"></script>
 <script>

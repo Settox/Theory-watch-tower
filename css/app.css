@@ -53,7 +53,7 @@ kbd { font-family: var(--mono); border: 1px solid var(--line2); border-radius: 4
 .node.selected .node-tools, .node:hover .node-tools { display: flex; }
 .node-tools button { background: none; border: 0; color: var(--dim); padding: 2px 5px; border-radius: 4px; }
 .node-tools button:hover { color: var(--star); background: var(--ink3); }
-.node-body { flex: 1; overflow: auto; padding: 4px 12px 8px; outline: none; font-size: var(--fs, 13px); overflow-wrap: anywhere; }
+.node-body { flex: 1; overflow: auto; padding: 4px 12px 8px; outline: none; font-size: var(--fs, 13px); overflow-wrap: anywhere; color: var(--tc, inherit); }
 .node-body img, .node-body video { max-width: 100%; border-radius: 6px; }
 .node-body iframe { width: 100%; aspect-ratio: 16/9; border: 0; border-radius: 6px; }
 .node-src { display: none; align-items: center; gap: 8px; padding: 4px 12px 8px; font-family: var(--mono); font-size: 11px; color: var(--dim); }
@@ -194,7 +194,7 @@ kbd { font-family: var(--mono); border: 1px solid var(--line2); border-radius: 4
 
 /* ===== node colour tints the whole star; frame toggle = truly transparent ===== */
 .node { background: color-mix(in srgb, var(--nc, var(--gold)) 10%, color-mix(in srgb, var(--ink2) 88%, transparent)); border-color: color-mix(in srgb, var(--nc, var(--gold)) 50%, var(--line2)); }
-.node-title { color: color-mix(in srgb, var(--nc, var(--gold)) 55%, var(--star)); }
+.node-title { color: var(--tc, color-mix(in srgb, var(--nc, var(--gold)) 55%, var(--star))); }
 .node-grip { color: color-mix(in srgb, var(--nc, var(--gold)) 75%, var(--dim)); }
 .node-link { border-color: var(--nc, var(--gold)); background: color-mix(in srgb, var(--nc, var(--gold)) 25%, var(--ink)); }
 .node.bare { background: transparent; backdrop-filter: none; -webkit-backdrop-filter: none; border-color: transparent; box-shadow: none; }
