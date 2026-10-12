@@ -1,5 +1,5 @@
 // Shared by the popup and the background worker.
-export const DEFAULT_APP = 'http://127.0.0.1:8742/';
+export const DEFAULT_APP = 'https://forbiddenlibrary.runs-on.dev/';
 
 export const load = () => chrome.storage.local.get({ app: DEFAULT_APP, lib: { pages: [], rooms: [] }, rooms: [], last: { space: 'personal', canvas: '' } });
 export const cleanRoom = (r) => String(r || '').trim().replace(/[^a-zA-Z0-9._-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 80);
