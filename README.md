@@ -21,3 +21,7 @@ Constellation-themed idea map. Vanilla ES modules, no build step.
 1. Open `chrome://extensions`, turn on Developer mode, press **Load unpacked** and pick the `extension` folder.
 2. Click the extension, open **Settings**, type the address where the app is published and press **Connect** (it asks permission for that one address only).
 3. Open the app once. From then on the popup lists your canvases and rooms: pick the space (personal or a room), the canvas, then **Clip it**. Right-click on any page, link or selection also works and uses your last choice.
+
+---
+
+© 2026 Settox. All rights reserved. See [LICENSE](LICENSE).
